@@ -39,7 +39,7 @@ class CompilableQuery(metaclass=ABCMeta):
 
     @abstractmethod
     def compile(
-        self, query: Dict, postprocess_actions: PostprocessType = None
+            self, query: Dict, postprocess_actions: PostprocessType = None
     ) -> None:
         pass
 
@@ -52,7 +52,7 @@ class KeywordQuery(CompilableQuery):
         self.is_substructure = is_substructure
 
     def compile(
-        self, query: Dict, postprocess_actions: PostprocessType = None
+            self, query: Dict, postprocess_actions: PostprocessType = None
     ) -> None:
         if self.is_substructure:
             bool_head = head_by_path(query, ("query", "bool"))
@@ -72,12 +72,13 @@ class TermQuery(CompilableQuery):
     """
     Result must match at least one result in the querying field.
     """
+
     def __init__(self, value_list: List[str], is_substructure: bool = False):
         self._value = value_list
         self.is_substructure = is_substructure
 
     def compile(
-        self, query: Dict, postprocess_actions: PostprocessType = None
+            self, query: Dict, postprocess_actions: PostprocessType = None
     ) -> None:
         if self.is_substructure:
             bool_head = head_by_path(query, ("query", "bool"))
@@ -100,13 +101,16 @@ class TermQuery(CompilableQuery):
 
 
 class SubstructureQuery(CompilableQuery):
-    def __init__(self, key: str, value: IndigoObject) -> None:
+    _use_tau: bool
+
+    def __init__(self, key: str, value: IndigoObject, use_tau: bool = False) -> None:
         self._key = key
         self._value = value
+        self._use_tau = use_tau
 
     # pylint: disable=inconsistent-return-statements
     def postprocess(
-        self, record: IndigoRecord, indigo: Indigo, options: str
+            self, record: IndigoRecord, indigo: Indigo, options: str
     ) -> Optional[IndigoRecord]:
         if not record.cmf:
             return None
@@ -121,20 +125,30 @@ class SubstructureQuery(CompilableQuery):
 
     @lru_cache(maxsize=None)
     def clauses(self) -> List[Dict]:
-        fp_list = self._value.fingerprint("sub").oneBitsList().split()
-        return clauses(fp_list, "sub_fingerprint")
+        fp_list: list[str]
+        if self._use_tau:
+            fp_list = self._value.fingerprint("sub-tau").oneBitsList().split()
+            return clauses(fp_list, "sub-tau_fingerprint")
+        else:
+            fp_list = self._value.fingerprint("sub").oneBitsList().split()
+            return clauses(fp_list, "sub_fingerprint")
 
     def compile(
-        self, query: Dict, postprocess_actions: PostprocessType = None
+            self, query: Dict, postprocess_actions: PostprocessType = None
     ) -> None:
         bool_head = head_by_path(query, ("query", "bool"))
         if not bool_head.get("must"):
             bool_head["must"] = []
         bool_head["must"] += self.clauses()
         bool_head["filter"] = [{"term": {"has_error": {"value": 0}}}]
-        query["min_score"] = len(
-            self._value.fingerprint("sub").oneBitsList().split()
-        )
+        if self._use_tau:
+            query["min_score"] = len(
+                self._value.fingerprint("sub-tau").oneBitsList().split()
+            )
+        else:
+            query["min_score"] = len(
+                self._value.fingerprint("sub").oneBitsList().split()
+            )
         assert postprocess_actions is not None
         postprocess_actions.append(getattr(self, "postprocess"))
 
@@ -145,7 +159,7 @@ class RangeQuery(CompilableQuery):
         self.upper = upper
 
     def compile(
-        self, query: Dict, postprocess_actions: PostprocessType = None
+            self, query: Dict, postprocess_actions: PostprocessType = None
     ) -> None:
         bool_head = head_by_path(
             query, ("query", "script_score", "query", "bool")
@@ -172,7 +186,7 @@ class WildcardQuery(CompilableQuery):
         self.wildcard = wildcard
 
     def compile(
-        self, query: Dict, postprocess_actions: PostprocessType = None
+            self, query: Dict, postprocess_actions: PostprocessType = None
     ) -> None:
         bool_head = head_by_path(
             query, ("query", "script_score", "query", "bool")
@@ -196,7 +210,7 @@ class BaseMatch(metaclass=ABCMeta):
 
     # pylint: disable=unused-argument
     def compile(
-        self, query: Dict, postprocess_actions: PostprocessType = None
+            self, query: Dict, postprocess_actions: PostprocessType = None
     ) -> None:
         bool_head = head_by_path(
             query, ("query", "script_score", "query", "bool")
@@ -233,18 +247,18 @@ class TanimotoSimilarityMatch(BaseMatch):
         assert self._target.sim_fingerprint
         return {
             "source": "_score / (params.a + "
-            "doc['sim_fingerprint_len'].value - _score)",
+                      "doc['sim_fingerprint_len'].value - _score)",
             "params": {"a": len(self._target.sim_fingerprint)},
         }
 
     def min_should_match(self, length: int) -> str:
         assert self.target.sim_fingerprint
         min_match = (
-            math.floor(
-                (self._threshold * (len(self.target.sim_fingerprint) + 1))
-                / (1.0 + self._threshold)
-            )
-            / length
+                math.floor(
+                    (self._threshold * (len(self.target.sim_fingerprint) + 1))
+                    / (1.0 + self._threshold)
+                )
+                / length
         )
 
         return f"{int(min_match * 100)}%"
@@ -262,19 +276,19 @@ class EuclidSimilarityMatch(BaseMatch):
     def min_should_match(self, length: int):
         assert self._target.sim_fingerprint
         min_match = (
-            math.floor(self._threshold * len(self._target.sim_fingerprint))
-        ) / length
+                        math.floor(self._threshold * len(self._target.sim_fingerprint))
+                    ) / length
 
         return f"{int(min_match * 100)}%"
 
 
 class TverskySimilarityMatch(BaseMatch):
     def __init__(
-        self,
-        target: IndigoRecord,
-        threshold: float,
-        alpha: float = 0.5,
-        beta: float = 0.5,
+            self,
+            target: IndigoRecord,
+            threshold: float,
+            alpha: float = 0.5,
+            beta: float = 0.5,
     ):
         super().__init__(target, threshold)
         self._alpha = alpha
@@ -285,8 +299,8 @@ class TverskySimilarityMatch(BaseMatch):
         assert self._target.sim_fingerprint
         return {
             "source": "_score / ((params.a - _score) * "
-            "params.alpha + (doc['sim_fingerprint_len'].value - "
-            "_score) * params.beta + _score)",
+                      "params.alpha + (doc['sim_fingerprint_len'].value - "
+                      "_score) * params.beta + _score)",
             "params": {
                 "a": len(self._target.sim_fingerprint),
                 "alpha": self._alpha,
@@ -312,7 +326,7 @@ class ExactMatch(CompilableQuery):
 
     # pylint: disable=inconsistent-return-statements
     def postprocess(
-        self, record: IndigoRecord, indigo: Indigo, options: str
+            self, record: IndigoRecord, indigo: Indigo, options: str
     ) -> Optional[IndigoRecord]:
         # postprocess only on molecule search
         if not isinstance(record, IndigoRecordMolecule):
@@ -329,7 +343,7 @@ class ExactMatch(CompilableQuery):
         return None
 
     def compile(
-        self, query, postprocess_actions: PostprocessType = None
+            self, query, postprocess_actions: PostprocessType = None
     ) -> None:
         bool_head = head_by_path(query, ("query", "bool"))
         if not bool_head.get("must"):
@@ -350,7 +364,9 @@ def query_factory(key: str, value: Any) -> CompilableQuery:
     if key == "exact":
         return ExactMatch(value)
     if key == "substructure":
-        return SubstructureQuery(key, value)
+        return SubstructureQuery(key, value, use_tau=False)
+    if key == "sub-tau":
+        return SubstructureQuery(key, value, use_tau=True)
     if isinstance(value, CompilableQuery):
         value.field = key
         return value

@@ -337,6 +337,8 @@ index_body = {
             "sim_fingerprint_len": {"type": "integer"},
             "sub_fingerprint": {"type": "keyword", "similarity": "boolean"},
             "sub_fingerprint_len": {"type": "integer"},
+            "sub-tau_fingerprint": {"type": "keyword", "similarity": "boolean"},
+            "sub-tau_fingerprint_len": {"type": "integer"},
             "cmf": {"type": "binary"},
             "hash": {"type": "unsigned_long"},
             "has_error": {"type": "integer"},
@@ -486,6 +488,7 @@ class AsyncElasticRepository:
             query_subject=query_subject,
             page_criteria=page_criteria,
             postprocess_actions=postprocess_actions,
+            use_tau_sss='TAU' in options,
             **kwargs,
         )
         # We must NOT specify an index name as this is inherited by PIT.
@@ -522,9 +525,13 @@ class AsyncElasticRepository:
     def compile_query(self, query_subject: Union[BaseMatch, IndigoObject, IndigoRecord] = None,
                       page_criteria: Optional[BingoElasticPageCriteria] = None,
                       postprocess_actions: PostprocessType = None,
-                      is_delete_query: bool = True, **kwargs, ) -> BingoElasticPageCriteria:
+                      is_delete_query: bool = True,
+                      # whether to use tautomers in SSS search. Must have sub-tau index prebuilt.
+                      use_tau_sss: bool = False,
+                      **kwargs, ) -> BingoElasticPageCriteria:
         return _compile_query(self.index_name, self.el_client,
-                              query_subject, page_criteria, postprocess_actions, is_delete_query, **kwargs)
+                              query_subject, page_criteria, postprocess_actions, is_delete_query, use_tau_sss,
+                              **kwargs)
 
 
 class ElasticRepository:
@@ -607,6 +614,7 @@ class ElasticRepository:
             query_subject=query_subject,
             page_criteria=page_criteria,
             postprocess_actions=postprocess_actions,
+            use_tau_sss='TAU' in options,
             **kwargs,
         )
         # We must NOT specify an index name as this is inherited by PIT.
@@ -638,9 +646,14 @@ class ElasticRepository:
     def compile_query(self, query_subject: Union[BaseMatch, IndigoObject, IndigoRecord] = None,
                       page_criteria: Optional[BingoElasticPageCriteria] = None,
                       postprocess_actions: PostprocessType = None,
-                      is_delete_query: bool = False, **kwargs, ) -> BingoElasticPageCriteria:
+                      is_delete_query: bool = False,
+                      # whether to use tautomers in SSS search. Must have sub-tau index prebuilt.
+                      use_tau_sss: bool = False,
+                      **kwargs, ) -> BingoElasticPageCriteria:
         return _compile_query(self.index_name, self.el_client,
-                              query_subject, page_criteria, postprocess_actions, is_delete_query, **kwargs)
+                              query_subject, page_criteria, postprocess_actions, is_delete_query,
+                              use_tau_sss=use_tau_sss,
+                              **kwargs)
 
 
 def _compile_query(index_name: str, el_client: ElasticRepositoryT,
@@ -648,6 +661,8 @@ def _compile_query(index_name: str, el_client: ElasticRepositoryT,
                    page_criteria: Optional[BingoElasticPageCriteria] = None,
                    postprocess_actions: PostprocessType = None,
                    is_delete_query: bool = False,
+                   # whether to use tautomers in SSS search. Must have sub-tau index prebuilt.
+                   use_tau_sss: bool = False,
                    **kwargs,
                    ) -> BingoElasticPageCriteria:
     # record last elastic hit's sort object, regardless of its post-process filtering status.
@@ -681,6 +696,8 @@ def _compile_query(index_name: str, el_client: ElasticRepositoryT,
                     "sim_fingerprint_len",
                     "sub_fingerprint_len",
                     "sub_fingerprint",
+                    "sub-tau_fingerprint_len",
+                    "sub-tau_fingerprint"
                 ],
             },
             # Sort is necessary for paging.
@@ -700,9 +717,14 @@ def _compile_query(index_name: str, el_client: ElasticRepositoryT,
             )
         elif isinstance(query_subject, IndigoObject):
             query_subject.aromatize()
-            query_factory("substructure", query_subject).compile(
-                query, postprocess_actions
-            )
+            if use_tau_sss:
+                query_factory("sub-tau", query_subject).compile(
+                    query, postprocess_actions
+                )
+            else:
+                query_factory("substructure", query_subject).compile(
+                    query, postprocess_actions
+                )
 
         for key, value in kwargs.items():
             query_factory(key, value).compile(query)

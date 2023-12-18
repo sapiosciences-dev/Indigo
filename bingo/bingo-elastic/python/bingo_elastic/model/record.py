@@ -39,6 +39,7 @@ class WithIndigoObject:
         fingerprints = (
             "sim",
             "sub",
+            "sub-tau"
         )
 
         for f_print in fingerprints:
@@ -125,7 +126,8 @@ class IndigoRecord:
         :type name: str
         :param sim_fingerprint: similarity fingerprint (sim)
         :type sim_fingerprint: List[int]
-        :param sub_fingerprint: similarity fingerprint (sub)
+        :param
+        sub_fingerprint: similarity fingerprint (sub)
         :type sub_fingerprint: List[int]
         :param error_handler: lambda for catching exceptions
         :type error_handler: Optional[Callable[[object, BaseException], None]]
