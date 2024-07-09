@@ -431,7 +431,6 @@ void MolfileSaver::_writeMultiString(Output& output, const char* string, int len
 
 void MolfileSaver::_writeCtab(Output& output, BaseMolecule& mol, bool query)
 {
-    add_implicit_h = false;
     _handleCIP(mol);
     if (mol.tgroups.getTGroupCount())
         _handleMonomers(mol);
@@ -1183,7 +1182,6 @@ void MolfileSaver::_writeTGroup(Output& output, BaseMolecule& mol, int tg_idx)
 
 void MolfileSaver::_writeCtab2000(Output& output, BaseMolecule& mol, bool query)
 {
-    add_implicit_h = false;
     _handleCIP(mol);
     QueryMolecule* qmol = nullptr;
 
