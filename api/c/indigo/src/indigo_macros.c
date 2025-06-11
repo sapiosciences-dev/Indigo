@@ -84,6 +84,14 @@ WRAPPER_LOAD_FROM_STRING(indigoLoadReactionSmarts)
 WRAPPER_LOAD_FROM_FILE(indigoLoadReactionSmarts)
 WRAPPER_LOAD_FROM_BUFFER(indigoLoadReactionSmarts)
 
+WRAPPER_LOAD_FROM_STRING(indigoLoadMonomerLibrary)
+WRAPPER_LOAD_FROM_FILE(indigoLoadMonomerLibrary)
+WRAPPER_LOAD_FROM_BUFFER(indigoLoadMonomerLibrary)
+
+WRAPPER_LOAD_FROM_STRING(indigoLoadKetDocument)
+WRAPPER_LOAD_FROM_FILE(indigoLoadKetDocument)
+WRAPPER_LOAD_FROM_BUFFER(indigoLoadKetDocument)
+
 CEXPORT int indigoSaveMolfileToFile(int molecule, const char* filename)
 {
     int f = indigoWriteFile(filename);
@@ -112,7 +120,7 @@ CEXPORT int indigoSaveJsonToFile(int item, const char* filename)
     return res;
 }
 
-CEXPORT int indigoSaveSequenceToFile(int item, const char* filename)
+CEXPORT int indigoSaveSequenceToFile(int item, const char* filename, int library)
 {
     int f = indigoWriteFile(filename);
     int res;
@@ -120,13 +128,13 @@ CEXPORT int indigoSaveSequenceToFile(int item, const char* filename)
     if (f == -1)
         return -1;
 
-    res = indigoSaveSequence(item, f);
+    res = indigoSaveSequence(item, f, library);
 
     indigoFree(f);
     return res;
 }
 
-CEXPORT int indigoSaveFastaToFile(int item, const char* filename)
+CEXPORT int indigoSaveSequence3LetterToFile(int item, const char* filename, int library)
 {
     int f = indigoWriteFile(filename);
     int res;
@@ -134,13 +142,13 @@ CEXPORT int indigoSaveFastaToFile(int item, const char* filename)
     if (f == -1)
         return -1;
 
-    res = indigoSaveFasta(item, f);
+    res = indigoSaveSequence3Letter(item, f, library);
 
     indigoFree(f);
     return res;
 }
 
-CEXPORT int indigoSaveIdtToFile(int item, const char* filename)
+CEXPORT int indigoSaveFastaToFile(int item, const char* filename, int library)
 {
     int f = indigoWriteFile(filename);
     int res;
@@ -148,7 +156,35 @@ CEXPORT int indigoSaveIdtToFile(int item, const char* filename)
     if (f == -1)
         return -1;
 
-    res = indigoSaveIdt(item, f);
+    res = indigoSaveFasta(item, f, library);
+
+    indigoFree(f);
+    return res;
+}
+
+CEXPORT int indigoSaveIdtToFile(int item, const char* filename, int library)
+{
+    int f = indigoWriteFile(filename);
+    int res;
+
+    if (f == -1)
+        return -1;
+
+    res = indigoSaveIdt(item, f, library);
+
+    indigoFree(f);
+    return res;
+}
+
+CEXPORT int indigoSaveHelmToFile(int item, const char* filename, int library)
+{
+    int f = indigoWriteFile(filename);
+    int res;
+
+    if (f == -1)
+        return -1;
+
+    res = indigoSaveHelm(item, f, library);
 
     indigoFree(f);
     return res;
@@ -184,7 +220,7 @@ CEXPORT const char* indigoMolfile(int molecule)
     return res;
 }
 
-CEXPORT const char* indigoSequence(int molecule)
+CEXPORT const char* indigoSequence(int molecule, int library)
 {
     int b = indigoWriteBuffer();
     const char* res;
@@ -192,7 +228,7 @@ CEXPORT const char* indigoSequence(int molecule)
     if (b == -1)
         return 0;
 
-    if (indigoSaveSequence(molecule, b) == -1)
+    if (indigoSaveSequence(molecule, b, library) == -1)
         return 0;
 
     res = indigoToString(b);
@@ -200,7 +236,7 @@ CEXPORT const char* indigoSequence(int molecule)
     return res;
 }
 
-CEXPORT const char* indigoFasta(int molecule)
+CEXPORT const char* indigoSequence3Letter(int molecule, int library)
 {
     int b = indigoWriteBuffer();
     const char* res;
@@ -208,7 +244,7 @@ CEXPORT const char* indigoFasta(int molecule)
     if (b == -1)
         return 0;
 
-    if (indigoSaveFasta(molecule, b) == -1)
+    if (indigoSaveSequence3Letter(molecule, b, library) == -1)
         return 0;
 
     res = indigoToString(b);
@@ -216,7 +252,7 @@ CEXPORT const char* indigoFasta(int molecule)
     return res;
 }
 
-CEXPORT const char* indigoIdt(int molecule)
+CEXPORT const char* indigoFasta(int molecule, int library)
 {
     int b = indigoWriteBuffer();
     const char* res;
@@ -224,7 +260,39 @@ CEXPORT const char* indigoIdt(int molecule)
     if (b == -1)
         return 0;
 
-    if (indigoSaveIdt(molecule, b) == -1)
+    if (indigoSaveFasta(molecule, b, library) == -1)
+        return 0;
+
+    res = indigoToString(b);
+    indigoFree(b);
+    return res;
+}
+
+CEXPORT const char* indigoIdt(int molecule, int library)
+{
+    int b = indigoWriteBuffer();
+    const char* res;
+
+    if (b == -1)
+        return 0;
+
+    if (indigoSaveIdt(molecule, b, library) == -1)
+        return 0;
+
+    res = indigoToString(b);
+    indigoFree(b);
+    return res;
+}
+
+CEXPORT const char* indigoHelm(int molecule, int library)
+{
+    int b = indigoWriteBuffer();
+    const char* res;
+
+    if (b == -1)
+        return 0;
+
+    if (indigoSaveHelm(molecule, b, library) == -1)
         return 0;
 
     res = indigoToString(b);

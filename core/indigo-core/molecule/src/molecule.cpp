@@ -56,9 +56,6 @@ void Molecule::clear()
     _total_h.clear();
     _valence.clear();
     _radicals.clear();
-    _template_occurrences.clear();
-    _template_names.clear();
-    _template_classes.clear();
 
     _aromatized = false;
     _ignore_bad_valence = false;
@@ -98,6 +95,7 @@ void Molecule::_mergeWithSubmolecule(BaseMolecule& bmol, const Array<int>& verti
             setTemplateAtomClass(newidx, mol.getTemplateAtomClass(vertices[i]));
             setTemplateAtomSeqid(newidx, mol.getTemplateAtomSeqid(vertices[i]));
             setTemplateAtomTemplateIndex(newidx, mol.getTemplateAtomTemplateIndex(vertices[i]));
+            setTemplateAtomDisplayOption(newidx, mol.getTemplateAtomDisplayOption(vertices[i]));
         }
 
         bool nei_mapped = (getVertex(newidx).degree() == mol.getVertex(vertices[i]).degree());
@@ -342,15 +340,11 @@ void Molecule::setPseudoAtom(int idx, const char* text)
     updateEditRevision();
 }
 
-void Molecule::renameTemplateAtom(int idx, const char* text)
+int Molecule::addTemplateAtom(const char* text)
 {
-    auto occur_idx = _atoms[idx].template_occur_idx;
-    if (_atoms[idx].number == ELEM_TEMPLATE)
-    {
-        _TemplateOccurrence& occur = _template_occurrences.at(occur_idx);
-        _template_names.set(occur.name_idx, text);
-        updateEditRevision();
-    }
+    int idx = addAtom(ELEM_TEMPLATE);
+    setTemplateAtom(idx, text);
+    return idx;
 }
 
 void Molecule::setTemplateAtom(int idx, const char* text)
@@ -362,66 +356,6 @@ void Molecule::setTemplateAtom(int idx, const char* text)
     occur.seq_id = -1;
     occur.template_idx = -1;
     occur.contracted = DisplayOption::Undefined;
-    updateEditRevision();
-}
-
-void Molecule::setTemplateAtomName(int idx, const char* text)
-{
-    if (_atoms[idx].number != ELEM_TEMPLATE)
-        throw Error("setTemplateAtomClass(): atom #%d is not a template atom", idx);
-
-    _TemplateOccurrence& occur = _template_occurrences.at(_atoms[idx].template_occur_idx);
-    occur.name_idx = _template_names.add(text);
-    updateEditRevision();
-}
-
-void Molecule::setTemplateAtomClass(int idx, const char* text)
-{
-    if (_atoms[idx].number != ELEM_TEMPLATE)
-        throw Error("setTemplateAtomClass(): atom #%d is not a template atom", idx);
-
-    _TemplateOccurrence& occur = _template_occurrences.at(_atoms[idx].template_occur_idx);
-    occur.class_idx = _template_classes.add(text);
-    updateEditRevision();
-}
-
-void Molecule::setTemplateAtomSeqid(int idx, int seq_id)
-{
-    if (_atoms[idx].number != ELEM_TEMPLATE)
-        throw Error("setTemplateAtomSeqid(): atom #%d is not a template atom", idx);
-
-    _TemplateOccurrence& occur = _template_occurrences.at(_atoms[idx].template_occur_idx);
-    occur.seq_id = seq_id;
-    updateEditRevision();
-}
-
-void Molecule::setTemplateAtomSeqName(int idx, const char* seq_name)
-{
-    if (_atoms[idx].number != ELEM_TEMPLATE)
-        throw Error("setTemplateAtomSeqName(): atom #%d is not a template atom", idx);
-
-    _TemplateOccurrence& occur = _template_occurrences.at(_atoms[idx].template_occur_idx);
-    occur.seq_name.readString(seq_name, true);
-    updateEditRevision();
-}
-
-void Molecule::setTemplateAtomTemplateIndex(int idx, int temp_idx)
-{
-    if (_atoms[idx].number != ELEM_TEMPLATE)
-        throw Error("setTemplateAtomTemplateIndex(): atom #%d is not a template atom", idx);
-
-    _TemplateOccurrence& occur = _template_occurrences.at(_atoms[idx].template_occur_idx);
-    occur.template_idx = temp_idx;
-    updateEditRevision();
-}
-
-void Molecule::setTemplateAtomDisplayOption(int idx, int option)
-{
-    if (_atoms[idx].number != ELEM_TEMPLATE)
-        throw Error("setTemplateAtomDisplayOption(): atom #%d is not a template atom", idx);
-
-    _TemplateOccurrence& occur = _template_occurrences.at(_atoms[idx].template_occur_idx);
-    occur.contracted = (DisplayOption)option;
     updateEditRevision();
 }
 
@@ -878,7 +812,9 @@ int Molecule::_getImplicitHForConnectivity(int idx, int conn, bool use_cache)
                 else if (Element::calcValence(atom.number, atom.charge, RADICAL_DOUBLET, conn, valence, impl_h, false))
                     radical = RADICAL_DOUBLET;
                 else
+                {
                     throw Element::Error("can not calculate valence on %s, charge %d, connectivity %d", Element::toString(atom.number), atom.charge, conn);
+                }
                 if (use_cache)
                 {
                     _radicals.expandFill(idx + 1, -1);
@@ -1404,114 +1340,14 @@ bool Molecule::isTemplateAtom(int idx)
     return _atoms[idx].number == ELEM_TEMPLATE;
 }
 
-const char* Molecule::getTemplateAtom(int idx)
+int Molecule::getTemplateAtomOccurrence(int idx)
 {
     const _Atom& atom = _atoms[idx];
 
     if (atom.number != ELEM_TEMPLATE)
-        throw Error("getTemplateAtom(): atom #%d is not a template atom", idx);
+        throw Error("getTemplateAtomOccurrence(): atom #%d is not a template atom", idx);
 
-    _TemplateOccurrence& occur = _template_occurrences.at(atom.template_occur_idx);
-    const char* res = _template_names.at(occur.name_idx);
-
-    if (res == 0)
-        throw Error("template atom string is zero");
-
-    return res;
-}
-
-const char* Molecule::getTemplateAtomClass(int idx)
-{
-    const _Atom& atom = _atoms[idx];
-
-    if (atom.number != ELEM_TEMPLATE)
-        throw Error("getTemplateAtomClass(): atom #%d is not a template atom", idx);
-
-    _TemplateOccurrence& occur = _template_occurrences.at(atom.template_occur_idx);
-    const char* res = _template_classes.at(occur.class_idx);
-
-    return res;
-}
-
-const char* Molecule::getTemplateAtomSeqName(int idx)
-{
-    const _Atom& atom = _atoms[idx];
-
-    if (atom.number != ELEM_TEMPLATE)
-        throw Error("getTemplateAtomClass(): atom #%d is not a template atom", idx);
-
-    _TemplateOccurrence& occur = _template_occurrences.at(atom.template_occur_idx);
-    return occur.seq_name.ptr();
-}
-
-const int Molecule::getTemplateAtomTemplateIndex(int idx)
-{
-    const _Atom& atom = _atoms[idx];
-
-    if (atom.number != ELEM_TEMPLATE)
-        throw Error("getTemplateAtomTemplateIndex(): atom #%d is not a template atom", idx);
-
-    _TemplateOccurrence& occur = _template_occurrences.at(atom.template_occur_idx);
-    const int res = occur.template_idx;
-    return res;
-}
-
-const int Molecule::getTemplateAtomSeqid(int idx)
-{
-    const _Atom& atom = _atoms[idx];
-
-    if (atom.number != ELEM_TEMPLATE)
-        throw Error("getTemplateAtomSeqid(): atom #%d is not a template atom", idx);
-
-    _TemplateOccurrence& occur = _template_occurrences.at(atom.template_occur_idx);
-    const int res = occur.seq_id;
-
-    return res;
-}
-
-const int Molecule::getTemplateAtomDisplayOption(int idx)
-{
-    const _Atom& atom = _atoms[idx];
-
-    if (atom.number != ELEM_TEMPLATE)
-        throw Error("getTemplateAtomDisplayOption(): atom #%d is not a template atom", idx);
-
-    _TemplateOccurrence& occur = _template_occurrences.at(atom.template_occur_idx);
-    const int res = static_cast<int>(occur.contracted);
-    // const int res = occur.contracted;
-
-    return res;
-}
-
-void Molecule::getTemplatesMap(std::unordered_map<std::pair<std::string, std::string>, std::reference_wrapper<TGroup>, pair_hash>& templates_map)
-{
-    templates_map.clear();
-    for (int i = tgroups.begin(); i != tgroups.end(); i = tgroups.next(i))
-    {
-        auto& tg = tgroups.getTGroup(i);
-        std::string tname = tg.tgroup_name.size() ? tg.tgroup_name.ptr() : monomerAlias(tg);
-        templates_map.emplace(std::make_pair(tname, tg.tgroup_class.ptr()), std::ref(tg));
-    }
-}
-
-void Molecule::getTemplateAtomDirectionsMap(std::vector<std::map<int, int>>& directions_map)
-{
-    directions_map.clear();
-    if (vertexCount())
-    {
-        directions_map.resize(vertexEnd());
-        for (int i = template_attachment_points.begin(); i != template_attachment_points.end(); i = template_attachment_points.next(i))
-        {
-            auto& tap = template_attachment_points[i];
-            if (tap.ap_id.size())
-            {
-                Array<char> atom_label;
-                getAtomSymbol(tap.ap_occur_idx, atom_label);
-                int ap_id = tap.ap_id[0] - 'A';
-                directions_map[tap.ap_occur_idx].emplace(ap_id, tap.ap_aidx);
-            }
-        }
-    }
+    return atom.template_occur_idx;
 }
 
 BaseMolecule* Molecule::neu()

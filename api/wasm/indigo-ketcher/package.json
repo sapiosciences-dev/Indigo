@@ -1,10 +1,32 @@
 {
   "name": "indigo-ketcher",
-  "version": "1.20.1-yq",
+  "version": "1.30.1alpha",
   "description": "WASM implementation of Indigo organic chemistry toolkit web service for Ketcher",
-  "main": "indigo-ketcher.js",
+  "exports": {
+    ".": {
+      "import": "./indigo-ketcher.js",
+      "require": "./indigo-ketcher.js"
+    },
+    "./binaryWasm": {
+      "import": "./indigo-ketcher-separate-wasm.js",
+      "require": "./indigo-ketcher-separate-wasm.js"
+    },
+    "./jsNoRender": {
+      "import": "./indigo-ketcher-norender.js",
+      "require": "./indigo-ketcher-norender.js"
+    },
+    "./binaryWasmNoRender": {
+      "import": "./indigo-ketcher-separate-wasm-norender.js",
+      "require": "./indigo-ketcher-separate-wasm-norender.js"
+    }
+  },
   "files": [
+    "indigo-ketcher-separate-wasm.js",
+    "indigo-ketcher-separate-wasm-norender.js",
     "indigo-ketcher.js",
+    "indigo-ketcher-norender.js",
+    "indigo-ketcher-separate-wasm.wasm",
+    "indigo-ketcher-separate-wasm-norender.wasm",
     "README.md",
     "LICENSE"
   ],

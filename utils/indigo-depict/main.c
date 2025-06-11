@@ -245,6 +245,7 @@ enum
     OEXT_CML,
     OEXT_KET,
     OEXT_KER,
+    OEXT_RDR,
     OEXT_CDX,
     OEXT_CDX64,
     OEXT_CDR,
@@ -347,7 +348,7 @@ int parseParams(Params* p, int argc, char* argv[])
             strcasecmp(p->infile_ext, "seq") == 0 || strcasecmp(p->infile_ext, "fst") == 0)
             p->mode = MODE_SINGLE_MOLECULE;
         else if (strcasecmp(p->infile_ext, "rxn") == 0 || strcasecmp(p->infile_ext, "ker") == 0 || strcasecmp(p->infile_ext, "cdr") == 0 ||
-                 strcasecmp(p->infile_ext, "xmr") == 0 || strcasecmp(p->infile_ext, "r64") == 0)
+                 strcasecmp(p->infile_ext, "xmr") == 0 || strcasecmp(p->infile_ext, "r64") == 0 || strcasecmp(p->infile_ext, "rdr") == 0)
         {
             p->mode = MODE_SINGLE_REACTION;
         }
@@ -866,8 +867,9 @@ int main(int argc, char* argv[])
 
     indigoSetOption("ignore-stereochemistry-errors", "on");
     indigoSetOption("ignore-bad-valence", "on");
-    indigoSetOption("molfile-saving-mode", "3000");
+    indigoSetOption("molfile-saving-mode", "2000");
     indigoSetOptionBool("json-saving-pretty", "on");
+    indigoSetOptionFloat("reaction-component-margin-size", 0.0f);
 
     if (parseParams(&p, argc, argv) < 0)
         return -1;
@@ -887,6 +889,8 @@ int main(int argc, char* argv[])
         p.out_ext = OEXT_KET;
     else if (strcmp(p.outfile_ext, "ker") == 0)
         p.out_ext = OEXT_KER;
+    else if (strcmp(p.outfile_ext, "rdr") == 0)
+        p.out_ext = OEXT_RDR;
     else if (strcmp(p.outfile_ext, "smi") == 0)
         p.out_ext = OEXT_SMI;
     else if (strcmp(p.outfile_ext, "cdxml") == 0)
@@ -917,6 +921,7 @@ int main(int argc, char* argv[])
     // read in the input
     reader = (p.file_to_load != NULL) ? indigoReadFile(p.file_to_load) : indigoReadString(p.string_to_load);
 
+    int lib = indigoLoadMonomerLibraryFromString("{\"root\":{}}");
     if (p.mode == MODE_SINGLE_MOLECULE)
     {
         if (p.id != NULL)
@@ -931,15 +936,19 @@ int main(int argc, char* argv[])
             obj = indigoLoadQueryMolecule(reader);
         else if (strcasecmp(p.infile_ext, "fst") == 0)
         {
-            obj = indigoLoadFasta(reader, p.seq_type);
+            obj = indigoLoadFasta(reader, p.seq_type, lib);
         }
         else if (strcasecmp(p.infile_ext, "seq") == 0)
         {
-            obj = indigoLoadSequence(reader, p.seq_type);
+            obj = indigoLoadSequence(reader, p.seq_type, lib);
         }
         else if (strcasecmp(p.infile_ext, "idt") == 0)
         {
-            obj = indigoLoadIdt(reader);
+            obj = indigoLoadIdt(reader, lib);
+        }
+        else if (strcasecmp(p.infile_ext, "helm") == 0)
+        {
+            obj = indigoLoadHelm(reader, lib);
         }
         else
             obj = indigoLoadMolecule(reader);
@@ -953,9 +962,9 @@ int main(int argc, char* argv[])
             else if (p.out_ext == OEXT_KET)
                 indigoSaveJsonToFile(obj, p.outfile);
             else if (p.out_ext == OEXT_SEQ)
-                indigoSaveSequenceToFile(obj, p.outfile);
+                indigoSaveSequenceToFile(obj, p.outfile, lib);
             else if (p.out_ext == OEXT_FASTA)
-                indigoSaveFastaToFile(obj, p.outfile);
+                indigoSaveFastaToFile(obj, p.outfile, lib);
             else if (p.out_ext == OEXT_SMI)
             {
                 char* pMol;
@@ -1079,6 +1088,19 @@ int main(int argc, char* argv[])
                     fprintf(stderr, "can not write: %s\n", p.outfile);
                     return -1;
                 }
+            }
+            else if (p.out_ext == OEXT_RDR)
+            {
+                writer = indigoWriteFile(p.outfile);
+                indigoRdfHeader(writer);
+                auto it_id = indigoIterateReactions(obj);
+                while (indigoHasNext(it_id))
+                {
+                    const auto robj = indigoNext(it_id);
+                    const auto rxn_id = indigoClone(robj);
+                    auto rc = indigoRdfAppend(writer, rxn_id);
+                }
+                indigoFree(writer);
             }
             else
             {

@@ -47,7 +47,9 @@ namespace indigo
         DECL_ERROR;
 
     protected:
-        void _saveMolecule(BaseMolecule& mol, bool query);
+        void _saveMolecule(BaseMolecule& bmol, bool query);
+        void _validate(BaseMolecule& bmol);
+
         void _addMoleculeElement(tinyxml2::XMLElement* elem, BaseMolecule& mol, bool query);
         void _addSgroupElement(tinyxml2::XMLElement* elem, BaseMolecule& mol, SGroup& sgroup);
         void _addRgroups(tinyxml2::XMLElement* elem, BaseMolecule& mol, bool query);
@@ -55,7 +57,6 @@ namespace indigo
 
         bool _getRingBondCountFlagValue(QueryMolecule& qmol, int idx, int& value);
         bool _getSubstitutionCountFlagValue(QueryMolecule& qmol, int idx, int& value);
-        void _writeOccurrenceRanges(Output& out, const Array<int>& occurrences);
 
         Output& _output;
 

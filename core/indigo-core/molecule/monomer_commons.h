@@ -23,6 +23,7 @@ namespace indigo
     const auto kMonomerClassAminoAcid = "AminoAcid";
     const auto kMonomerClassDAminoAcid = "D-AminoAcid";
     const auto kMonomerClassPEPTIDE = "PEPTIDE";
+    const auto kMonomerClassPEPTIDE_3_LETTER = "PEPTIDE-3-LETTER";
 
     // nucleic classes
     const auto kMonomerClassDNA = "DNA";
@@ -96,5 +97,49 @@ namespace indigo
         int leaving_group;
         std::string id;
     };
+
+    const auto kHELMPolymerTypePEPTIDE = kMonomerClassPEPTIDE;
+    const auto kHELMPolymerTypeRNA = kMonomerClassRNA;
+    const auto kHELMPolymerTypeCHEM = kMonomerClassCHEM;
+    const auto kHELMPolymerTypeUnknown = "BLOB";
+
+    enum class HELMType
+    {
+        Peptide,
+        RNA,
+        Chem,
+        Unknown
+    };
+
+    HELMType getHELMTypeFromString(const std::string& helm_type);
+    const std::string& getStringFromHELMType(HELMType helm_type);
+
+    static const std::unordered_set<std::string> STANDARD_PEPTIDES = {"A", "C", "D", "E", "F", "G", "H", "I", "K", "L", "M",
+                                                                      "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "Y"};
+    static const std::unordered_set<std::string> STANDARD_NUCLEOTIDES = {"A", "C", "G", "T", "U"};
+
+    static const std::unordered_set<std::string> IDT_STANDARD_BASES = {"A", "T", "C", "G", "U", "I", "In"};
+    static const std::map<std::string, int> IDT_BASE_TO_RATIO_IDX = {{"A", 0}, {"C", 1}, {"G", 2}, {"T", 3}, {"U", 3}};
+    static const std::map<std::string, std::string> IDT_STANDARD_SUGARS{{"R", "r"}, {"LR", "+"}, {"mR", "m"}, {"dR", ""}};
+
+    static const std::map<std::string, std::vector<std::string>> STANDARD_MIXED_PEPTIDES = {
+        {"B", {"D", "N"}}, {"J", {"L", "I"}}, {"Z", {"E", "Q"}}, {"X", {"A", "C", "D", "E", "F", "G", "H", "I", "K", "L", "M",
+                                                                        "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "Y"}}};
+    static const std::map<std::string, std::vector<std::string>> STANDARD_MIXED_BASES = {
+        {"R", {"A", "G"}},      {"Y", {"C", "T"}},      {"M", {"A", "C"}},      {"K", {"G", "T"}},      {"S", {"G", "C"}},          {"W", {"A", "T"}},
+        {"H", {"A", "C", "T"}}, {"B", {"C", "G", "T"}}, {"V", {"A", "C", "G"}}, {"D", {"A", "G", "T"}}, {"N", {"A", "C", "G", "T"}}};
+    static const std::map<std::set<std::string>, std::string> STANDARD_MIXED_PEPTIDES_TO_ALIAS = {
+        {{"D", "N"}, "B"},
+        {{"L", "I"}, "J"},
+        {{"E", "Q"}, "Z"},
+        {{"A", "C", "D", "E", "F", "G", "H", "I", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "Y"}, "X"}};
+    static const std::map<std::set<std::string>, std::string> STANDARD_MIXED_BASES_TO_ALIAS = {
+        {{"A", "G"}, "R"},       {{"C", "T"}, "Y"},           {{"C", "U"}, "rY"},          {{"A", "C"}, "M"},      {{"G", "T"}, "K"},
+        {{"G", "U"}, "rK"},      {{"G", "C"}, "S"},           {{"A", "T"}, "W"},           {{"A", "U"}, "rW"},     {{"A", "C", "T"}, "H"},
+        {{"A", "C", "U"}, "rH"}, {{"C", "G", "T"}, "B"},      {{"C", "G", "U"}, "rB"},     {{"A", "C", "G"}, "V"}, {{"A", "G", "T"}, "D"},
+        {{"A", "G", "U"}, "rD"}, {{"A", "C", "G", "T"}, "N"}, {{"A", "C", "G", "U"}, "rN"}};
+    static const std::set<std::string> RNA_DNA_MIXED_BASES = {"R", "M", "S", "V"};
+    static const std::map<std::string, std::string> STANDARD_MIXED_PEPTIDES_ALIAS_TO_NAME = {{"B", "Asx"}, {"J", "Xle"}, {"X", "Xaa"}, {"Z", "Glx"}};
+    static const std::map<std::string, std::string> STANDARD_MIXED_PEPTIDES_NAME_TO_ALIAS = {{"Asx", "B"}, {"Xle", "J"}, {"Xaa", "X"}, {"Glx", "Z"}};
 }
 #endif

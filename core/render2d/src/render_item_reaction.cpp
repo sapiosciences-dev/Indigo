@@ -19,6 +19,7 @@
 #include "render_item_reaction.h"
 #include "base_cpp/output.h"
 #include "layout/metalayout.h"
+#include "reaction/pathway_reaction.h"
 #include "reaction/query_reaction.h"
 #include "reaction/reaction.h"
 #include "render_context.h"
@@ -40,12 +41,13 @@ void RenderItemReaction::init()
     if (rxn == NULL)
         throw Error("reaction not set");
 
-    int arrows_count = rxn->meta().getMetaCount(KETReactionArrow::CID);
-    if (rxn->begin() >= rxn->end() && !arrows_count) // no reactants or products
+    int arrows_count = rxn->meta().getMetaCount(ReactionArrowObject::CID);
+    int multi_count = rxn->meta().getMetaCount(ReactionMultitailArrowObject::CID);
+    if (rxn->begin() >= rxn->end() && !arrows_count && !multi_count) // no reactants or products
         return;
 
-    int simple_count = rxn->meta().getMetaCount(KETSimpleObject::CID) + rxn->meta().getMetaCount(KETTextObject::CID);
-    if (arrows_count || simple_count)
+    int simple_count = rxn->meta().getMetaCount(SimpleGraphicsObject::CID) + rxn->meta().getMetaCount(SimpleTextObject::CID);
+    if (arrows_count || simple_count || multi_count)
     {
         initWithMeta();
     }
@@ -113,14 +115,29 @@ void RenderItemReaction::initWithMeta()
     max = aux.max;
     items.push(_meta);
 
-    for (int i = rxn->begin(); i < rxn->end(); i = rxn->next(i))
+    if (rxn->isPathwayReaction())
     {
-        auto mol = _addFragment(i);
-        items.push(mol);
-        auto& frag = _factory.getItemFragment(mol);
-        frag.min.set(0, 0);
-        frag.max.set(0, 0);
+        auto& pwr = rxn->asPathwayReaction();
+        for (int i = 0; i < pwr.getMoleculeCount(); ++i)
+        {
+            int mol = _factory.addItemFragment();
+            _factory.getItemFragment(mol).mol = &pwr.getMolecule(i);
+            _factory.getItemFragment(mol).init();
+            items.push(mol);
+            auto& frag = _factory.getItemFragment(mol);
+            frag.min.set(0, 0);
+            frag.max.set(0, 0);
+        }
     }
+    else
+        for (int i = rxn->begin(); i < rxn->end(); i = rxn->next(i))
+        {
+            auto mol = _addFragment(i);
+            items.push(mol);
+            auto& frag = _factory.getItemFragment(mol);
+            frag.min.set(0, 0);
+            frag.max.set(0, 0);
+        }
 }
 
 int RenderItemReaction::_addPlus()

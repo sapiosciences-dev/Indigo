@@ -27,6 +27,7 @@
 #include "molecule/molecule_fingerprint.h"
 #include "molecule/molecule_json_saver.h"
 #include "molecule/molfile_saver.h"
+#include "reaction/pathway_reaction_json_saver.h"
 #include "reaction/reaction_json_saver.h"
 #include "reaction/rxnfile_saver.h"
 
@@ -39,11 +40,15 @@
 #include <iostream>
 #endif
 
-static _SessionLocalContainer<Indigo> indigo_self;
+DLLEXPORT _SessionLocalContainer<Indigo>& indigoSelf()
+{
+    static _SessionLocalContainer<Indigo> indigo_self;
+    return indigo_self;
+}
 
 DLLEXPORT Indigo& indigoGetInstance()
 {
-    return indigo_self.getLocalCopy();
+    return indigoSelf().getLocalCopy();
 }
 
 CEXPORT const char* indigoVersion()
@@ -202,10 +207,19 @@ void Indigo::initMoleculeJsonSaver(MoleculeJsonSaver& saver)
     saver.use_native_precision = json_use_native_precision;
 }
 
-void Indigo::initReactionJsonSaver(ReactionJsonSaver& saver)
+void Indigo::initReactionJsonSaver(ReactionJsonSaver& saver) const
 {
     saver.add_stereo_desc = json_saving_add_stereo_desc;
     saver.pretty_json = json_saving_pretty;
+    saver.layout_options = layout_options;
+    saver.use_native_precision = json_use_native_precision;
+}
+
+void Indigo::initReactionJsonSaver(PathwayReactionJsonSaver& saver)
+{
+    saver.add_stereo_desc = json_saving_add_stereo_desc;
+    saver.pretty_json = json_saving_pretty;
+    saver.use_native_precision = json_use_native_precision;
 }
 
 void Indigo::initRxnfileSaver(RxnfileSaver& saver)
@@ -301,7 +315,7 @@ CEXPORT qword indigoAllocSessionId()
 {
     qword id = TL_ALLOC_SESSION_ID();
     TL_SET_SESSION_ID(id);
-    Indigo& indigo = indigo_self.createOrGetLocalCopy(id);
+    Indigo& indigo = indigoSelf().createOrGetLocalCopy(id);
     indigo.init();
     sf::xlock_safe_ptr(IndigoLocaleHandler::handler())->setLocale(LC_NUMERIC, "C");
     IndigoOptionManager::getIndigoOptionManager().createOrGetLocalCopy(id);
@@ -324,7 +338,7 @@ CEXPORT void indigoReleaseSessionId(qword id)
     TL_SET_SESSION_ID(id);
     indigoGetInstance().removeAllObjects();
     IndigoOptionManager::getIndigoOptionManager().removeLocalCopy(id);
-    indigo_self.removeLocalCopy(id);
+    indigoSelf().removeLocalCopy(id);
     TL_RELEASE_SESSION_ID(id);
 #ifdef INDIGO_DEBUG
     std::stringstream ss;
@@ -346,7 +360,7 @@ CEXPORT void indigoSetErrorHandler(INDIGO_ERROR_HANDLER handler, void* context)
 CEXPORT int indigoFree(int handle)
 {
     // In some runtimes (e.g. Python) session could be removed before objects during resource releasing stage)
-    if (indigo_self.hasLocalCopy())
+    if (indigoSelf().hasLocalCopy())
     {
         try
         {

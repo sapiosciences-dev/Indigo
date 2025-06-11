@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <iomanip>
 #include <map>
 #include <set>
@@ -18,8 +19,11 @@
 #include <rapidjson/writer.h>
 
 #include "indigo-inchi.h"
-#include "indigo-renderer.h"
 #include "indigo.h"
+
+#ifndef INDIGO_NO_RENDER
+#include "indigo-renderer.h"
+#endif
 
 namespace indigo
 {
@@ -89,7 +93,8 @@ namespace indigo
             EKETMolecule,
             EKETMoleculeQuery,
             EKETReaction,
-            EKETReactionQuery
+            EKETReactionQuery,
+            EKETDocument,
         };
         KOType objtype;
 
@@ -109,7 +114,7 @@ namespace indigo
             objtype = type;
         }
 
-        std::string toString(const std::map<std::string, std::string>& options, const std::string& outputFormat) const
+        std::string toString(const std::map<std::string, std::string>& options, const std::string& outputFormat, int library = -1) const
         {
             print_js("toString:");
             std::string result;
@@ -138,15 +143,23 @@ namespace indigo
             }
             else if (outputFormat == "sequence" || outputFormat == "chemical/x-sequence")
             {
-                result = _checkResultString(indigoSequence(id()));
+                result = _checkResultString(indigoSequence(id(), library));
+            }
+            else if (outputFormat == "peptide-sequence-3-letter" || outputFormat == "chemical/x-peptide-sequence-3-letter")
+            {
+                result = _checkResultString(indigoSequence3Letter(id(), library));
             }
             else if (outputFormat == "fasta" || outputFormat == "chemical/x-fasta")
             {
-                result = _checkResultString(indigoFasta(id()));
+                result = _checkResultString(indigoFasta(id(), library));
             }
             else if (outputFormat == "idt" || outputFormat == "chemical/x-idt")
             {
-                result = _checkResultString(indigoIdt(id()));
+                result = _checkResultString(indigoIdt(id(), library));
+            }
+            else if (outputFormat == "helm" || outputFormat == "chemical/x-helm")
+            {
+                result = _checkResultString(indigoHelm(id(), library));
             }
             else if (outputFormat == "smarts" || outputFormat == "chemical/x-daylight-smarts")
             {
@@ -200,6 +213,20 @@ namespace indigo
                 print_js(outputFormat.c_str());
                 result = _checkResultString(indigoToString(buffer.id));
             }
+            else if (outputFormat == "rdf" || outputFormat == "chemical/x-rdf")
+            {
+                auto buffer = IndigoObject(_checkResult(indigoWriteBuffer()));
+                auto reac_it = IndigoObject(_checkResult(indigoIterateReactions(id())));
+                indigoRdfHeader(buffer.id);
+                while (indigoHasNext(reac_it.id))
+                {
+                    const auto reac_obj = IndigoObject(_checkResult(indigoNext(reac_it.id)));
+                    const auto reac = IndigoObject(_checkResult(indigoClone(reac_obj.id)));
+                    indigoRdfAppend(buffer.id, reac.id);
+                }
+                print_js(outputFormat.c_str());
+                result = _checkResultString(indigoToString(buffer.id));
+            }
             else
             {
                 std::stringstream ss;
@@ -249,7 +276,7 @@ namespace indigo
 
     void indigoSetOptions(const std::map<std::string, std::string>& options)
     {
-        std::set<std::string> to_skip{"smiles", "smarts", "input-format", "output-content-type"};
+        std::set<std::string> to_skip{"smiles", "smarts", "input-format", "output-content-type", "monomerLibrary", "sequence-type"};
         for (const auto& option : options)
         {
             if (to_skip.count(option.first) < 1)
@@ -296,12 +323,20 @@ namespace indigo
     public:
         explicit IndigoRendererSession(const qword sessionId) : _sessionId(sessionId)
         {
+#ifndef INDIGO_NO_RENDER
             indigoRendererInit(_sessionId);
+#else
+            jsThrow("No renderer included in this wasm bundle!");
+#endif
         }
 
         ~IndigoRendererSession()
         {
+#ifndef INDIGO_NO_RENDER
             indigoRendererDispose(_sessionId);
+#else
+            jsThrow("No renderer included in this wasm bundle!");
+#endif
         }
 
         IndigoRendererSession(const IndigoRendererSession&) = delete;
@@ -310,10 +345,13 @@ namespace indigo
         IndigoRendererSession& operator=(IndigoRendererSession&&) = delete;
     };
 
-    IndigoKetcherObject loadMoleculeOrReaction(const std::string& data, const std::map<std::string, std::string>& options)
+    IndigoKetcherObject loadMoleculeOrReaction(const std::string& data, const std::map<std::string, std::string>& options, int library = -1,
+                                               bool use_document = false)
     {
-        static std::unordered_map<std::string, std::string> seq_formats = {
-            {"chemical/x-peptide-sequence", "PEPTIDE"}, {"chemical/x-rna-sequence", "RNA"}, {"chemical/x-dna-sequence", "DNA"}};
+        static std::unordered_map<std::string, std::string> seq_formats = {{"chemical/x-peptide-sequence", "PEPTIDE"},
+                                                                           {"chemical/x-peptide-sequence-3-letter", "PEPTIDE-3-LETTER"},
+                                                                           {"chemical/x-rna-sequence", "RNA"},
+                                                                           {"chemical/x-dna-sequence", "DNA"}};
 
         static std::unordered_map<std::string, std::string> fasta_formats = {
             {"chemical/x-peptide-fasta", "PEPTIDE"}, {"chemical/x-rna-fasta", "RNA"}, {"chemical/x-dna-fasta", "DNA"}};
@@ -345,20 +383,29 @@ namespace indigo
         else if (input_format != options.end() && seq_formats.count(input_format->second))
         {
             auto seq_it = seq_formats.find(input_format->second);
-            objectId = indigoLoadSequenceFromString(data.c_str(), seq_it->second.c_str());
+            objectId = indigoLoadSequenceFromString(data.c_str(), seq_it->second.c_str(), library);
             if (objectId >= 0)
                 return IndigoKetcherObject(objectId, IndigoKetcherObject::EKETMolecule);
+            exceptionMessages.emplace_back(indigoGetLastError());
         }
         else if (input_format != options.end() && fasta_formats.count(input_format->second))
         {
             auto fasta_it = fasta_formats.find(input_format->second);
-            objectId = indigoLoadFastaFromString(data.c_str(), fasta_it->second.c_str());
+            objectId = indigoLoadFastaFromString(data.c_str(), fasta_it->second.c_str(), library);
             if (objectId >= 0)
                 return IndigoKetcherObject(objectId, IndigoKetcherObject::EKETMolecule);
+            exceptionMessages.emplace_back(indigoGetLastError());
         }
         else if (input_format != options.end() && input_format->second == "chemical/x-idt")
         {
-            objectId = indigoLoadIdtFromString(data.c_str());
+            objectId = indigoLoadIdtFromString(data.c_str(), library);
+            if (objectId >= 0)
+                return IndigoKetcherObject(objectId, IndigoKetcherObject::EKETMolecule);
+            exceptionMessages.emplace_back(indigoGetLastError());
+        }
+        else if (input_format != options.end() && input_format->second == "chemical/x-helm")
+        {
+            objectId = indigoLoadHelmFromString(data.c_str(), library);
             if (objectId >= 0)
                 return IndigoKetcherObject(objectId, IndigoKetcherObject::EKETMolecule);
             exceptionMessages.emplace_back(indigoGetLastError());
@@ -370,6 +417,15 @@ namespace indigo
                 objectId = indigoInchiLoadMolecule(data.c_str());
                 if (objectId >= 0)
                     return IndigoKetcherObject(objectId, IndigoKetcherObject::EKETMolecule);
+            }
+            if (use_document)
+            {
+                print_js("try as document");
+                objectId = indigoLoadKetDocumentFromBuffer(data.c_str(), data.size());
+                if (objectId >= 0)
+                {
+                    return IndigoKetcherObject(objectId, IndigoKetcherObject::EKETDocument);
+                }
             }
             bool query = false;
             auto i = options.find("query");
@@ -396,6 +452,65 @@ namespace indigo
                     return IndigoKetcherObject(objectId, IndigoKetcherObject::EKETReaction);
                 }
                 exceptionMessages.emplace_back(indigoGetLastError());
+
+                if (library >= 0)
+                {
+                    auto sequence_type = options.find("sequence-type");
+                    if (sequence_type != options.end() && sequence_type->second == "PEPTIDE")
+                    {
+                        print_js("try as PEPTIDE-3-LETTER");
+                        objectId = indigoLoadSequenceFromString(data.c_str(), "PEPTIDE-3-LETTER", library);
+                        if (objectId >= 0)
+                        {
+                            return IndigoKetcherObject(objectId, IndigoKetcherObject::EKETDocument);
+                        }
+                    }
+                    auto is_upper =
+                        std::all_of(sequence_type->second.begin(), sequence_type->second.end(), [](int ch) { return !std::isalpha(ch) || std::isupper(ch); });
+                    auto is_lower =
+                        std::all_of(sequence_type->second.begin(), sequence_type->second.end(), [](int ch) { return !std::isalpha(ch) || std::islower(ch); });
+                    if (sequence_type != options.end() && (is_upper || is_lower))
+                    {
+                        std::string msg = "try as " + sequence_type->second;
+                        print_js(msg.c_str());
+                        objectId = indigoLoadSequenceFromString(data.c_str(), sequence_type->second.c_str(), library);
+                        if (objectId >= 0)
+                        {
+                            return IndigoKetcherObject(objectId, IndigoKetcherObject::EKETDocument);
+                        }
+                    }
+                    print_js("try as IDT");
+                    objectId = indigoLoadIdtFromString(data.c_str(), library);
+                    if (objectId >= 0)
+                    {
+                        return IndigoKetcherObject(objectId, IndigoKetcherObject::EKETDocument);
+                    }
+                    if (sequence_type != options.end())
+                    {
+                        std::string msg = "try as " + sequence_type->second;
+                        print_js(msg.c_str());
+                        objectId = indigoLoadSequenceFromString(data.c_str(), sequence_type->second.c_str(), library);
+                        if (objectId >= 0)
+                        {
+                            return IndigoKetcherObject(objectId, IndigoKetcherObject::EKETDocument);
+                        }
+                    }
+                    else
+                    {
+                        print_js("try as PEPTIDE-3-LETTER");
+                        objectId = indigoLoadSequenceFromString(data.c_str(), "PEPTIDE-3-LETTER", library);
+                        if (objectId >= 0)
+                        {
+                            return IndigoKetcherObject(objectId, IndigoKetcherObject::EKETDocument);
+                        }
+                    }
+                    print_js("try as HELM");
+                    objectId = indigoLoadHelmFromString(data.c_str(), library);
+                    if (objectId >= 0)
+                    {
+                        return IndigoKetcherObject(objectId, IndigoKetcherObject::EKETDocument);
+                    }
+                }
             }
             exceptionMessages.emplace_back(indigoGetLastError());
             // Let's try query molecule
@@ -440,14 +555,51 @@ namespace indigo
     std::string convert(const std::string& data, const std::string& outputFormat, const std::map<std::string, std::string>& options)
     {
         const IndigoSession session;
-        indigoSetOptions(options);
-        std::map<std::string, std::string> options_copy = options;
+        std::map<std::string, std::string> options_copy;
+        for (const auto& option : options)
+        {
+            if (option.first != "monomerLibrary")
+            {
+                options_copy[option.first] = option.second;
+            }
+        }
+
+        int library = -1;
+        auto monomerLibrary = options.find("monomerLibrary");
+        if (monomerLibrary != options.end() && monomerLibrary->second.size())
+        {
+            library = indigoLoadMonomerLibraryFromString(monomerLibrary->second.c_str());
+        }
+        else
+        {
+            library = indigoLoadMonomerLibraryFromString("{\"root\":{}}");
+        }
+
         if (outputFormat.find("smarts") != std::string::npos)
         {
             options_copy["query"] = "true";
         }
-        IndigoKetcherObject iko = loadMoleculeOrReaction(data, options_copy);
-        return iko.toString(options, outputFormat.size() ? outputFormat : "ket");
+        indigoSetOptions(options);
+        std::string input_format = "ket";
+        if (const auto& it = options.find("input-format"); it != options.end())
+            input_format = it->second;
+
+        bool use_document = false;
+        static const std::set<std::string> document_formats{"sequence",
+                                                            "chemical/x-sequence",
+                                                            "peptide-sequence-3-letter",
+                                                            "chemical/x-peptide-sequence-3-letter",
+                                                            "fasta",
+                                                            "chemical/x-fasta",
+                                                            "idt",
+                                                            "chemical/x-idt",
+                                                            "helm",
+                                                            "chemical/x-helm"};
+        if ((input_format == "ket" || input_format == "application/json") && outputFormat.size() > 0 && document_formats.count(outputFormat) > 0)
+            use_document = true;
+        IndigoKetcherObject iko = loadMoleculeOrReaction(data, options_copy, library, use_document);
+
+        return iko.toString(options, outputFormat.size() ? outputFormat : "ket", library);
     }
 
     std::string convert_explicit_hydrogens(const std::string& data, const std::string& mode, const std::string& outputFormat,
@@ -824,8 +976,25 @@ namespace indigo
         return buffer.GetString();
     }
 
+    std::string calculateMacroProperties(const std::string& data, const std::map<std::string, std::string>& options)
+    {
+        const IndigoSession session;
+        indigoSetOptions(options);
+        auto iko = indigoLoadKetDocumentFromString(data.c_str());
+        rapidjson::Document result;
+        auto& allocator = result.GetAllocator();
+        result.SetObject();
+        std::string props{indigoMacroProperties(iko)};
+        result.AddMember("properties", props, allocator);
+        rapidjson::StringBuffer buffer;
+        rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+        result.Accept(writer);
+        return buffer.GetString();
+    }
+
     std::string render(const std::string& data, const std::map<std::string, std::string>& options)
     {
+#ifndef INDIGO_NO_RENDER
         const IndigoSession session;
         const IndigoRendererSession indigoRendererSession(session.getSessionId());
 
@@ -837,6 +1006,10 @@ namespace indigo
         _checkResult(indigoRender(iko.id(), buffer_object.id));
         _checkResult(indigoToBuffer(buffer_object.id, &raw_ptr, &size));
         return cppcodec::base64_rfc4648::encode(raw_ptr, size);
+#else
+        jsThrow("No renderer included in this wasm bundle!");
+        return "";
+#endif
     }
 
     std::string reactionComponents(const std::string& data, const std::map<std::string, std::string>& options)
@@ -916,6 +1089,7 @@ namespace indigo
         emscripten::function("check", &check);
         emscripten::function("calculateCip", &calculateCip);
         emscripten::function("calculate", &calculate);
+        emscripten::function("calculateMacroProperties", &calculateMacroProperties);
         emscripten::function("render", &render);
         emscripten::function("reactionComponents", &reactionComponents);
 

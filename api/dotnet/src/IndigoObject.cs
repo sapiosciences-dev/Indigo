@@ -86,29 +86,49 @@ namespace com.epam.indigo
             dispatcher.checkResult(IndigoLib.indigoFree(s));
         }
 
-        public string sequence()
+        public string sequence(IndigoObject library)
         {
             dispatcher.setSessionID();
-            return dispatcher.checkResult(IndigoLib.indigoSequence(self));
+            return dispatcher.checkResult(IndigoLib.indigoSequence(self, library.self));
         }
 
-        public string fasta()
+        public string sequence3Letter(IndigoObject library)
         {
             dispatcher.setSessionID();
-            return dispatcher.checkResult(IndigoLib.indigoFasta(self));
+            return dispatcher.checkResult(IndigoLib.indigoSequence3Letter(self, library.self));
         }
 
-        public string idt()
+        public string fasta(IndigoObject library)
         {
             dispatcher.setSessionID();
-            return dispatcher.checkResult(IndigoLib.indigoIdt(self));
+            return dispatcher.checkResult(IndigoLib.indigoFasta(self, library.self));
         }
 
-        public void saveSequenceToFile(string filename)
+        public string idt(IndigoObject library)
+        {
+            dispatcher.setSessionID();
+            return dispatcher.checkResult(IndigoLib.indigoIdt(self, library.self));
+        }
+
+        public string helm(IndigoObject library)
+        {
+            dispatcher.setSessionID();
+            return dispatcher.checkResult(IndigoLib.indigoHelm(self, library.self));
+        }
+
+        public void saveSequenceToFile(string filename, IndigoObject library)
         {
             dispatcher.setSessionID();
             int s = dispatcher.checkResult(IndigoLib.indigoWriteFile(filename));
-            dispatcher.checkResult(IndigoLib.indigoSaveSequenceToFile(self, s));
+            dispatcher.checkResult(IndigoLib.indigoSaveSequenceToFile(self, s, library.self));
+            dispatcher.checkResult(IndigoLib.indigoFree(s));
+        }
+
+        public void saveSequence3LetterToFile(string filename, IndigoObject library)
+        {
+            dispatcher.setSessionID();
+            int s = dispatcher.checkResult(IndigoLib.indigoWriteFile(filename));
+            dispatcher.checkResult(IndigoLib.indigoSaveSequence3LetterToFile(self, s, library.self));
             dispatcher.checkResult(IndigoLib.indigoFree(s));
         }
 
@@ -116,6 +136,12 @@ namespace com.epam.indigo
         {
             dispatcher.setSessionID();
             return dispatcher.checkResult(IndigoLib.indigoCml(self));
+        }
+
+        public string macroProperties()
+        {
+            dispatcher.setSessionID();
+            return dispatcher.checkResult(IndigoLib.indigoMacroProperties(self));
         }
 
         public string getOriginalFormat()
@@ -230,6 +256,12 @@ namespace com.epam.indigo
         {
             dispatcher.setSessionID();
             return new IndigoObject(dispatcher, dispatcher.checkResult(IndigoLib.indigoIterateMolecules(self)), this);
+        }
+
+        public IEnumerable iterateReactions()
+        {
+            dispatcher.setSessionID();
+            return new IndigoObject(dispatcher, dispatcher.checkResult(IndigoLib.indigoIterateReactions(self)), this);
         }
 
         public string rxnfile()

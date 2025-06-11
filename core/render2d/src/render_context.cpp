@@ -18,7 +18,7 @@
 
 #include "render_context.h"
 #include "base_cpp/output.h"
-#include "molecule/ket_commons.h"
+#include "molecule/meta_commons.h"
 
 #include <limits.h>
 
@@ -119,11 +119,25 @@ void RenderContext::storeAndDestroyMetafile(bool discard)
 
 CP_DEF(RenderContext);
 
-RenderContext::RenderContext(const RenderOptions& ropt, float sf, float lwf)
+RenderContext::RenderContext(const RenderOptions& ropt, float relativeThickness, float bondLineWidthFactor)
     : CP_INIT, TL_CP_GET(_fontfamily), TL_CP_GET(transforms), metafileFontsToCurves(false), _cr(NULL), _surface(NULL), _meta_hdc(NULL), opt(ropt),
-      _pattern(NULL)
+      _pattern(NULL), _settings()
 {
-    _settings.init(sf, lwf);
+    AcsOptions acs;
+    if (ropt.fontSize > 0)
+        acs.fontSizeAngstrom = UnitsOfMeasure::convertToPx(ropt.fontSize, ropt.fontSizeUnit, ropt.ppi) / ropt.bond_length_px;
+    if (ropt.fontSizeSub > 0)
+        acs.fontSizeSubAngstrom = UnitsOfMeasure::convertToPx(ropt.fontSizeSub, ropt.fontSizeSubUnit, ropt.ppi) / ropt.bond_length_px;
+    if (ropt.bondThickness > 0)
+        acs.bondThicknessAngstrom = UnitsOfMeasure::convertToPx(ropt.bondThickness, ropt.bondThicknessUnit, ropt.ppi) / ropt.bond_length_px;
+    if (ropt.stereoBondWidth > 0)
+        acs.stereoBondWidthAngstrom = UnitsOfMeasure::convertToPx(ropt.stereoBondWidth, ropt.stereoBondWidthUnit, ropt.ppi) / ropt.bond_length_px;
+    if (ropt.hashSpacing > 0)
+        acs.hashSpacingAngstrom = UnitsOfMeasure::convertToPx(ropt.hashSpacing, ropt.hashSpacingUnit, ropt.ppi) / ropt.bond_length_px;
+    if (ropt.bondSpacing > 0)
+        acs.bondSpacing = ropt.bondSpacing;
+    _settings.init(relativeThickness, bondLineWidthFactor, &acs);
+
     bprintf(_fontfamily, "Arial");
     bbmin.x = bbmin.y = 1;
     bbmax.x = bbmax.y = -1;
@@ -510,6 +524,51 @@ void RenderContext::drawTextItemText(const TextItem& ti, const Vec3f& color, boo
     fontsDrawText(ti_mod, color, idle);
 }
 
+struct PngReadContext
+{
+    const unsigned char* data;
+    size_t size;
+    size_t offset;
+};
+
+cairo_status_t pngReadFunc(void* closure, unsigned char* data, unsigned int length)
+{
+    PngReadContext* context = static_cast<PngReadContext*>(closure);
+    if (context->offset + length > context->size)
+        return CAIRO_STATUS_READ_ERROR;
+    memcpy(data, context->data + context->offset, length);
+    context->offset += length;
+    return CAIRO_STATUS_SUCCESS;
+}
+
+void RenderContext::drawPng(const std::string& pngData, const Rect2f& bbox)
+{
+    PngReadContext context = {(const unsigned char*)pngData.data(), pngData.size(), 0};
+    cairo_surface_t* image = cairo_image_surface_create_from_png_stream(pngReadFunc, &context);
+
+    if (cairo_surface_status(image) != CAIRO_STATUS_SUCCESS)
+    {
+        cairo_surface_destroy(image);
+        return;
+    }
+
+    double imgWidth = cairo_image_surface_get_width(image);
+    double imgHeight = cairo_image_surface_get_height(image);
+
+    cairo_save(_cr);
+
+    cairo_translate(_cr, bbox.left(), bbox.bottom());
+    cairo_scale(_cr, bbox.width() / imgWidth, bbox.height() / imgHeight);
+
+    cairo_set_source_surface(_cr, image, 0, 0);
+    cairo_paint(_cr);
+
+    cairo_restore(_cr);
+    cairo_surface_destroy(image);
+    bbIncludePoint(bbox.leftTop());
+    bbIncludePoint(bbox.rightBottom());
+}
+
 void RenderContext::drawLine(const Vec2f& v0, const Vec2f& v1)
 {
     moveTo(v0);
@@ -588,6 +647,37 @@ void RenderContext::fillQuadStripes(const Vec2f& v0r, const Vec2f& v0l, const Ve
     {
         r.add(dr);
         l.add(dl);
+        moveTo(r);
+        lineTo(l);
+    }
+    checkPathNonEmpty();
+    bbIncludePath(true);
+    cairo_stroke(_cr);
+    cairoCheckStatus();
+}
+
+void RenderContext::fillQuadStripesSpacing(const Vec2f& v0r, const Vec2f& v0l, const Vec2f& v1r, const Vec2f& v1l, float spacing)
+{
+    Vec2f r(v0r), dr;
+    Vec2f l(v0l), dl;
+    Vec2f v;
+    dr.diff(v1r, v0r);
+    dl.diff(v1l, v0l);
+    v.diff(v1l, v1r);
+    float dr_len = dr.lengthSqr();
+    float dl_len = dl.lengthSqr();
+
+    dr.normalize();
+    dr.scale(std::fabs(dr.vsin(v)) * spacing);
+    dl.normalize();
+    dl.scale(std::fabs(dl.vsin(v)) * spacing);
+
+    while (true)
+    {
+        r.add(dr);
+        l.add(dl);
+        if (Vec2f::distSqr(v0r, r) > dr_len || Vec2f::distSqr(v0l, l) > dl_len)
+            break;
         moveTo(r);
         lineTo(l);
     }
@@ -768,7 +858,7 @@ void RenderContext::drawAttachmentPoint(RenderItemAttachmentPoint& ri, bool idle
     setSingleSource(ri.color);
     if (ri.highlighted && opt.highlightColorEnable)
         setSingleSource(opt.highlightColor);
-    setLineWidth(_settings.unit);
+    setLineWidth(_settings.bondLineWidth);
     moveTo(ri.p0);
     lineTo(ri.p1);
     checkPathNonEmpty();
@@ -946,7 +1036,7 @@ void RenderContext::drawPlus(const Vec2f& pos, const float linewidth, const floa
 
 void RenderContext::drawHalfEllipse(const Vec2f& v1, const Vec2f& v2, const float height, const bool is_negative)
 {
-    float h = abs(height);
+    float h = std::fabs(height);
     double angle1 = height > 0 ? -M_PI : 0;
     double angle2 = height > 0 ? 0 : M_PI;
     Vec2f d;
@@ -1076,17 +1166,17 @@ void RenderContext::drawEllipticalArrow(const Vec2f& p1, const Vec2f& p2, const 
     n_orig.negate();
     switch (arrow_type)
     {
-    case KETReactionArrow::EEllipticalArcFilledBow:
+    case ReactionArrowObject::EEllipticalArcFilledBow:
         drawArrowHeader(p2, n_orig, width, headwidth, headsize, true);
         break;
 
-    case KETReactionArrow::EEllipticalArcFilledTriangle:
+    case ReactionArrowObject::EEllipticalArcFilledTriangle:
         drawTriangleArrowHeader(p2, n_orig, width, headwidth, headsize);
         break;
-    case KETReactionArrow::EEllipticalArcOpenAngle:
+    case ReactionArrowObject::EEllipticalArcOpenAngle:
         drawArrowHeader(p2, n_orig, width, headwidth, headsize);
         break;
-    case KETReactionArrow::EEllipticalArcOpenHalfAngle:
+    case ReactionArrowObject::EEllipticalArcOpenHalfAngle:
         drawHalfArrowHeader(p2, n_orig, width, headwidth, headsize);
         break;
     }
@@ -1247,11 +1337,20 @@ void RenderContext::drawEquillibriumHalf(const Vec2f& p1, const Vec2f& p2, const
     n.negate();
     pa.addScaled(n, headwidth);
     pb.addScaled(n, headwidth);
+    const float default_shift = headsize * 2.0f;
+    float shift = default_shift;
+    if ((len - shift * 2.0f) < default_shift)
+    {
+        if (len < default_shift * 2.0f)
+            shift = len / 4.0f; // too short arrow - shift will be 1/4 of arrow length, short part - 1/2
+        else
+            shift = (len - default_shift) / 2.0f; // short part of arrow will be headsize*2
+    }
     if (is_unbalanced)
-        pa.addScaled(d, headsize * 2);
+        pa.addScaled(d, shift);
     d.negate();
     if (is_unbalanced)
-        pb.addScaled(d, headsize * 2);
+        pb.addScaled(d, shift);
     drawHalfArrowHeader(pa, d, width, headwidth * width_scale, headsize, arrow_type);
     drawBar(pb, pa, width, margin);
     checkPathNonEmpty();
@@ -1326,6 +1425,34 @@ void RenderContext::drawCustomArrow(const Vec2f& p1, const Vec2f& p2, const floa
     lineTo(p);
     p.addScaled(n, width);
     lineTo(p);
+}
+
+void RenderContext::drawRetroSynthArrow(const Vec2f& p1, const Vec2f& p2, const float width, const float headwidth, const float headsize)
+{
+    Vec2f d, n, pa(p1);
+    d.diff(p2, p1);
+    float len = d.length();
+    d.normalize();
+    n.copy(d);
+    n.rotate(-1, 0);
+
+    pa.addScaled(n, headwidth / 2);
+    Vec2f pb(pa);
+    pb.addScaled(d, len);
+    drawBar(pa, pb, width, headwidth);
+    n.negate();
+    pa.addScaled(n, headwidth);
+    pb.addScaled(n, headwidth);
+    drawBar(pa, pb, width, headwidth);
+
+    n.negate();
+    pb.addScaled(n, headwidth / 2);
+
+    drawArrowHeader(pb, d, width, (headwidth + width) * 2, headsize * 2);
+    checkPathNonEmpty();
+    bbIncludePath(false);
+    cairo_fill(_cr);
+    cairoCheckStatus();
 }
 
 void RenderContext::drawCustomArrow(const Vec2f& p1, const Vec2f& p2, const float width, const float headwidth, const float headsize, const bool is_bow,

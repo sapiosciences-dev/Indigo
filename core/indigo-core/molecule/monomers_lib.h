@@ -8,6 +8,7 @@
 
 #include "base_cpp/exception.h"
 #include "molecule/molecule_tgroups.h"
+#include "molecule/monomers_defs.h"
 #include <map>
 #include <memory>
 #include <string>
@@ -15,48 +16,14 @@
 
 namespace indigo
 {
-    // composite unordered_map key for pair
-    const auto kCompositeKeyHashMagicNumber = 0x9e3779b9;
-    template <class T>
-    inline void hash_combine(size_t& seed, T const& v)
-    {
-        seed ^= std::hash<T>()(v) + kCompositeKeyHashMagicNumber + (seed << 6) + (seed >> 2);
-    }
-
-    // universal fuctor for pair hash calculation
-    struct pair_hash
-    {
-        template <class T1, class T2>
-        size_t operator()(const std::pair<T1, T2>& p) const
-        {
-            size_t seed = 0;
-            hash_combine(seed, p.first);
-            hash_combine(seed, p.second);
-            return seed;
-        }
-    };
-
     class BaseMolecule;
 
-    enum class MonomerType
-    {
-        Sugar,
-        Phosphate,
-        Base,
-        AminoAcid,
-        CHEM
-    };
-
-    enum class NucleotideType
-    {
-        RNA,
-        DNA
-    };
-
-    using MonomerKey = std::pair<MonomerType, std::string>;
+    using MonomerKey = std::pair<MonomerClass, std::string>;
     using NucleotideKey = std::pair<NucleotideType, std::string>;
     using MonomersLib = std::unordered_map<MonomerKey, std::reference_wrapper<TGroup>, pair_hash>;
-    using GranularNucleotide = std::unordered_map<MonomerType, std::reference_wrapper<MonomersLib::value_type>>;
+    using GranularNucleotide = std::unordered_map<MonomerClass, std::reference_wrapper<MonomersLib::value_type>>;
+
+    class MonomerTemplateLibrary;
 
     // singleton MonomerTemplates class
 
@@ -70,12 +37,12 @@ namespace indigo
         MonomerTemplates& operator=(const MonomerTemplates&) = delete;
         MonomerTemplates& operator=(MonomerTemplates&&) = delete;
         static const MonomerTemplates& _instance();
-        static bool getMonomerTemplate(MonomerType mon_type, std::string alias, TGroup& tgroup);
+        static bool getMonomerTemplate(MonomerClass mon_type, std::string alias, TGroup& tgroup);
         static bool getMonomerTemplate(std::string mon_type, std::string alias, TGroup& tgroup);
         static bool splitNucleotide(NucleotideType nucleo_type, std::string alias, GranularNucleotide& splitted_nucleotide);
         static bool splitNucleotide(std::string nucleo_type, std::string alias, GranularNucleotide& splitted_nucleotide);
-        static const std::string& classToStr(MonomerType mon_type);
-        static const std::unordered_map<std::string, MonomerType>& getStrToMonomerType();
+        static const std::string& classToStr(MonomerClass mon_type);
+        static const std::unordered_map<std::string, MonomerClass>& getStrToMonomerType();
 
     private:
         MonomerTemplates();
@@ -85,6 +52,43 @@ namespace indigo
         std::unique_ptr<BaseMolecule> _templates_mol;
         std::unordered_map<NucleotideKey, GranularNucleotide, pair_hash> _nucleotides_lib;
         std::unordered_map<std::string, std::shared_ptr<BaseMolecule>> _aminoacids_lib;
+    };
+
+    enum class AttachmentPointType
+    {
+        LEFT,
+        RIGHT,
+        SIDE
+    };
+
+    class DLLEXPORT AttachmentPoint
+    {
+    public:
+        DECL_ERROR;
+
+        AttachmentPoint() = delete;
+
+        AttachmentPoint(const std::string& label, AttachmentPointType ap_type, int att_atom, std::vector<int>& leaving_group)
+            : _label(label), _type(ap_type), _attachment_atom(att_atom), _leaving_group(leaving_group){};
+
+        AttachmentPoint(const AttachmentPoint& second)
+        {
+            _label = second._label;
+            _type = second._type;
+            _attachment_atom = second._attachment_atom;
+            _leaving_group = second._leaving_group;
+        }
+
+        inline const std::string& label() const
+        {
+            return _label;
+        };
+
+    private:
+        std::string _label;
+        AttachmentPointType _type;
+        int _attachment_atom;
+        std::vector<int> _leaving_group;
     };
 }
 

@@ -22,6 +22,7 @@
 
 #include "base_cpp/output.h"
 #include "base_cpp/properties_map.h"
+#include "reaction/pathway_reaction.h"
 #include "reaction/reaction.h"
 
 #include "indigo_internal.h"
@@ -49,6 +50,7 @@ IndigoObjectTypes::IndigoObjectTypes()
     emplace(IndigoObject::RDF_MOLECULE, "<RDFMolecule>");
     emplace(IndigoObject::RDF_REACTION, "<RDFReaction>");
     emplace(IndigoObject::RDF_LOADER, "<RDFLoader>");
+    emplace(IndigoObject::PATHWAY_REACTION, "<PathwayReaction>");
     emplace(IndigoObject::SMILES_MOLECULE, "<SmilesMolecule>");
     emplace(IndigoObject::SMILES_REACTION, "<SmilesReaction>");
     emplace(IndigoObject::MULTILINE_SMILES_LOADER, "<MultilineSmilesLoader>");
@@ -123,6 +125,8 @@ IndigoObjectTypes::IndigoObjectTypes()
     emplace(IndigoObject::GROSS_REACTION, "<GrossReaction>");
     emplace(IndigoObject::JSON_MOLECULE, "<JsonMolecule>");
     emplace(IndigoObject::JSON_REACTION, "<JsonReaction>");
+    emplace(IndigoObject::MONOMER_LIBRARY, "<MonomerLibrary>");
+    emplace(IndigoObject::KET_DOCUMENT, "<KetDocument>");
 
     if (size() != IndigoObject::INDIGO_OBJECT_LAST_TYPE - 1)
     {
@@ -222,6 +226,11 @@ Reaction& IndigoObject::getReaction()
     throw IndigoError("%s is not a reaction", debugInfo());
 }
 
+PathwayReaction& IndigoObject::getPathwayReaction()
+{
+    throw IndigoError("%s is not a pathway reaction", debugInfo());
+}
+
 BaseReaction& IndigoObject::getBaseReaction()
 {
     throw IndigoError("%s is not a base reaction", debugInfo());
@@ -230,6 +239,11 @@ BaseReaction& IndigoObject::getBaseReaction()
 QueryReaction& IndigoObject::getQueryReaction()
 {
     throw IndigoError("%s is not a query reaction", debugInfo());
+}
+
+KetDocument& IndigoObject::getKetDocument()
+{
+    throw IndigoError("%s is not a ket document", debugInfo());
 }
 
 IndigoObject* IndigoObject::next()

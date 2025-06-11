@@ -2,6 +2,9 @@
     "root": {
         "nodes": [
             {
+                "$ref": "mol0"
+            },
+            {
                 "$ref": "monomer0"
             },
             {
@@ -33,6 +36,17 @@
             }
         ],
         "connections": [
+            {
+                "connectionType": "single",
+                "endpoint1": {
+                    "moleculeId": "mol0",
+                    "atomId": "0"
+                },
+                "endpoint2": {
+                    "monomerId": "monomer9",
+                    "attachmentPointId": "R1"
+                }
+            },
             {
                 "connectionType": "single",
                 "endpoint1": {
@@ -192,8 +206,8 @@
         "id": "3",
         "seqid": 5,
         "position": {
-            "x": 2.8959999084472658,
-            "y": -7.81089973449707
+            "x": 2.2960000038146974,
+            "y": -7.210899829864502
         },
         "alias": "T",
         "templateId": "Thy"
@@ -203,7 +217,7 @@
         "id": "4",
         "seqid": 5,
         "position": {
-            "x": 2.8959999084472658,
+            "x": 2.2960000038146974,
             "y": -6.210899829864502
         },
         "alias": "R",
@@ -215,7 +229,7 @@
         "seqid": 4,
         "position": {
             "x": 1.2156500816345215,
-            "y": -7.81089973449707
+            "y": -7.210899829864502
         },
         "alias": "G",
         "templateId": "Gua"
@@ -237,7 +251,7 @@
         "seqid": 3,
         "position": {
             "x": 1.0550000667572022,
-            "y": -7.81089973449707
+            "y": -7.210899829864502
         },
         "alias": "C",
         "templateId": "Cyt"
@@ -1487,5 +1501,19 @@
                 ]
             }
         ]
+    },
+    "mol0": {
+        "type": "molecule",
+        "atoms": [
+            {
+                "label": "H",
+                "location": [
+                    0.5810999870300293,
+                    -6.210999965667725,
+                    0.0
+                ]
+            }
+        ],
+        "bonds": []
     }
 }

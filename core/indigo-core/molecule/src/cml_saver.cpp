@@ -48,9 +48,27 @@ void CmlSaver::saveQueryMolecule(QueryMolecule& mol)
     _saveMolecule(mol, true);
 }
 
-void CmlSaver::_saveMolecule(BaseMolecule& mol, bool query)
+void CmlSaver::_validate(BaseMolecule& bmol)
+{
+    std::string unresolved;
+    if (bmol.getUnresolvedTemplatesList(bmol, unresolved))
+        throw Error("%s cannot be written in CML format.", unresolved.c_str());
+}
+
+void CmlSaver::_saveMolecule(BaseMolecule& bmol, bool query)
 {
     LocaleGuard locale_guard;
+    _validate(bmol);
+    auto* pmol = &bmol;
+    std::unique_ptr<BaseMolecule> mol;
+    if (bmol.tgroups.getTGroupCount())
+    {
+        mol.reset(bmol.neu());
+        mol->clone(bmol);
+        mol->transformTemplatesToSuperatoms();
+        pmol = mol.get();
+    }
+
     std::unique_ptr<XMLDocument> doc = std::make_unique<XMLDocument>();
     _doc = doc->GetDocument();
     _root = 0;
@@ -65,9 +83,9 @@ void CmlSaver::_saveMolecule(BaseMolecule& mol, bool query)
         elem = _root;
     }
 
-    _addMoleculeElement(elem, mol, query);
+    _addMoleculeElement(elem, *pmol, query);
 
-    _addRgroups(elem, mol, query);
+    _addRgroups(elem, *pmol, query);
 
     XMLPrinter printer;
     _doc->Accept(&printer);
@@ -117,6 +135,8 @@ void CmlSaver::_addMoleculeElement(XMLElement* elem, BaseMolecule& mol, bool que
                 atom_str = "R";
             else if (_mol->isPseudoAtom(i))
                 atom_str = _mol->getPseudoAtom(i);
+            // else if (_mol->isTemplateAtom(i))
+            //    atom_str = _mol->getTemplateAtom(i);
             else if (atom_number > 0)
                 atom_str = Element::toString(atom_number);
             else if (qmol != 0)
@@ -376,7 +396,18 @@ void CmlSaver::_addMoleculeElement(XMLElement* elem, BaseMolecule& mol, bool que
                 QS_DEF(Array<char>, sbuf);
                 ArrayOutput sout(sbuf);
                 const int* pyramid = _mol->stereocenters.getPyramid(i);
-                if (pyramid[3] == -1)
+                if (pyramid[2] == -1)
+                {
+                    // The atomRefs4 attribute in the atomParity element specifies
+                    // the four atoms involved in defining the stereochemistry.
+                    // These atoms are typically ordered in a sequence
+                    // that represents a directed path from the stereocenter to the fourth atom
+                    // with the reference atom (the atom to which the stereochemistry is referenced) being included twice.
+                    const Vertex& v = _mol->getVertex(i);
+                    int j = v.neiVertex(i);
+                    sout.printf("a%d a%d a%d a%d", pyramid[0], pyramid[1], i, j);
+                }
+                else if (pyramid[3] == -1)
                     sout.printf("a%d a%d a%d a%d", pyramid[0], pyramid[1], pyramid[2], i);
                 else
                     sout.printf("a%d a%d a%d a%d", pyramid[0], pyramid[1], pyramid[2], pyramid[3]);
@@ -796,8 +827,8 @@ void CmlSaver::_addRgroups(XMLElement* elem, BaseMolecule& mol, bool query)
 
             QS_DEF(Array<char>, buf);
             ArrayOutput out(buf);
-
-            _writeOccurrenceRanges(out, rgroup.occurrence);
+            rgroup.writeOccurrence(out);
+            out.writeChar(0);
 
             if (buf.size() > 1)
                 rg->SetAttribute("rlogicRange", buf.ptr());
@@ -817,27 +848,6 @@ void CmlSaver::_addRgroupElement(XMLElement* elem, RGroup& rgroup, bool query)
 
         _addMoleculeElement(elem, *fragment, query);
     }
-}
-
-void CmlSaver::_writeOccurrenceRanges(Output& out, const Array<int>& occurrences)
-{
-    for (int i = 0; i < occurrences.size(); i++)
-    {
-        int occurrence = occurrences[i];
-
-        if ((occurrence & 0xFFFF) == 0xFFFF)
-            out.printf(">%d", (occurrence >> 16) - 1);
-        else if ((occurrence >> 16) == (occurrence & 0xFFFF))
-            out.printf("%d", occurrence >> 16);
-        else if ((occurrence >> 16) == 0)
-            out.printf("<%d", (occurrence & 0xFFFF) + 1);
-        else
-            out.printf("%d-%d", occurrence >> 16, occurrence & 0xFFFF);
-
-        if (i != occurrences.size() - 1)
-            out.printf(",");
-    }
-    out.writeChar(0);
 }
 
 bool CmlSaver::_getRingBondCountFlagValue(QueryMolecule& qmol, int idx, int& value)

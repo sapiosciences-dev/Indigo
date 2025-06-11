@@ -20,11 +20,10 @@
 #include "base_cpp/scanner.h"
 #include "molecule/base_molecule.h"
 #include "molecule/elements.h"
-#include <memory>
 
 using namespace indigo;
 
-TGroup::TGroup()
+TGroup::TGroup() : unresolved(false), ambiguous(false)
 {
 }
 
@@ -34,6 +33,8 @@ TGroup::~TGroup()
 
 void TGroup::clear()
 {
+    unresolved = false;
+    ambiguous = false;
 }
 
 int TGroup::cmp(TGroup& tg1, TGroup& tg2, void* /*context*/)
@@ -45,6 +46,16 @@ int TGroup::cmp(TGroup& tg1, TGroup& tg2, void* /*context*/)
         return -1;
     if (tg2.fragment.get() == 0)
         return 1;
+
+    if (tg1.unresolved && !tg2.unresolved)
+        return 1;
+    else if (!tg1.unresolved && tg2.unresolved)
+        return -1;
+
+    if (tg1.ambiguous && !tg2.ambiguous)
+        return 1;
+    else if (!tg1.ambiguous && tg2.ambiguous)
+        return -1;
 
     lgrps.clear();
     bgrps.clear();
@@ -101,7 +112,7 @@ int TGroup::cmp(TGroup& tg1, TGroup& tg2, void* /*context*/)
         return -1;
 }
 
-void TGroup::copy(TGroup& other)
+void TGroup::copy(const TGroup& other)
 {
     tgroup_class.copy(other.tgroup_class);
     tgroup_name.copy(other.tgroup_name);
@@ -111,8 +122,20 @@ void TGroup::copy(TGroup& other)
     tgroup_comment.copy(other.tgroup_comment);
     tgroup_natreplace.copy(other.tgroup_natreplace);
     tgroup_id = other.tgroup_id;
-    fragment.reset(other.fragment->neu());
-    fragment->clone(*other.fragment.get(), 0, 0);
+    unresolved = other.unresolved;
+    idt_alias.copy(other.idt_alias);
+    if (!other.ambiguous)
+    {
+        fragment.reset(other.fragment->neu());
+        fragment->clone(*other.fragment.get(), 0, 0);
+    }
+    ambiguous = other.ambiguous;
+    mixture = other.mixture;
+    for (int i = 0; i < other.aliases.size(); i++)
+    {
+        aliases.push().copy(other.aliases[i]);
+    }
+    ratios.copy(other.ratios);
 }
 
 IMPL_ERROR(MoleculeTGroups, "molecule tgroups");

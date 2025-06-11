@@ -45,12 +45,20 @@ if (APPLE)
     string(APPEND CMAKE_CXX_FLAGS " -Wno-register")
 endif()
 
+if (MINGW)
+    string(APPEND CMAKE_CXX_FLAGS " -Wno-error=incompatible-pointer-types -Wno-error=int-conversion -Wno-error=implicit-int")
+    string(APPEND CMAKE_C_FLAGS " -Wno-error=incompatible-pointer-types -Wno-error=int-conversion -Wno-error=implicit-int")
+endif()
+
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 # Compile flags
 if (UNIX OR MINGW)
     string(APPEND CMAKE_C_FLAGS " -fvisibility=hidden $ENV{CFLAGS}")
     string(APPEND CMAKE_CXX_FLAGS " -fvisibility=hidden -fvisibility-inlines-hidden $ENV{CXXFLAGS}")
+
+    set(CMAKE_C_FLAGS_DEBUG "-g3")
+    set(CMAKE_CXX_FLAGS_DEBUG "-g3")
 
     if(BUILD_STANDALONE AND NOT EMSCRIPTEN)
         if (CMAKE_CXX_COMPILER_ID STREQUAL GNU)
@@ -71,8 +79,12 @@ if (UNIX OR MINGW)
         endif()
     endif()
 elseif (MSVC)
-    string(APPEND CMAKE_C_FLAGS " -MP -D_CRT_SECURE_NO_WARNINGS -D_WIN32_WINNT=0x0601 -DWINVER=0x0601")
-    string(APPEND CMAKE_CXX_FLAGS " -MP -EHs -D_CRT_SECURE_NO_WARNINGS -D_WIN32_WINNT=0x0601 -DWINVER=0x0601")
+    string(APPEND CMAKE_C_FLAGS " -D_CRT_SECURE_NO_WARNINGS -D_WIN32_WINNT=0x0601 -DWINVER=0x0601")
+    string(APPEND CMAKE_CXX_FLAGS " -EHs -D_CRT_SECURE_NO_WARNINGS -D_WIN32_WINNT=0x0601 -DWINVER=0x0601 -D_DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR")
+    if (NOT DISABLE_MP)
+        string(APPEND CMAKE_C_FLAGS " -MP")
+        string(APPEND CMAKE_CXX_FLAGS " -MP")
+    endif ()
 endif ()
 
 # NOTE: Link-time optimization flags - turned off for now due to issues with exception handling

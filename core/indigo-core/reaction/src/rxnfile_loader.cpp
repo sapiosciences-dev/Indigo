@@ -54,6 +54,18 @@ void RxnfileLoader::loadQueryReaction(QueryReaction& rxn)
     _loadReaction();
 }
 
+void indigo::RxnfileLoader::loadReaction(Reaction& reaction, PropertiesMap& props)
+{
+    loadReaction(reaction);
+    reaction.properties().copy(props);
+}
+
+void indigo::RxnfileLoader::loadQueryReaction(QueryReaction& reaction, PropertiesMap& props)
+{
+    loadQueryReaction(reaction);
+    reaction.properties().copy(props);
+}
+
 void RxnfileLoader::_loadReaction()
 {
     _brxn->clear();
@@ -67,37 +79,46 @@ void RxnfileLoader::_loadReaction()
     molfileLoader.ignore_bad_valence = ignore_bad_valence;
     _readRxnHeader();
 
-    _readReactantsHeader();
+    if (_v3000)
+        _readReactantsHeaderV3000();
     for (int i = 0; i < _n_reactants; i++)
     {
         int index = _brxn->addReactant();
 
-        _readMolHeader();
+        if (!_v3000)
+            _readMol2000Header();
         _readMol(molfileLoader, index);
     }
-    _readReactantsFooter();
+    if (_v3000)
+        _readReactantsFooterV3000();
 
-    _readProductsHeader();
+    if (_v3000)
+        _readProductsHeaderV3000();
     for (int i = 0; i < _n_products; i++)
     {
         int index = _brxn->addProduct();
 
-        _readMolHeader();
+        if (!_v3000)
+            _readMol2000Header();
         _readMol(molfileLoader, index);
     }
-    _readProductsFooter();
+    if (_v3000)
+        _readProductsFooterV3000();
 
     if (_n_catalysts > 0)
     {
-        _readCatalystsHeader();
+        if (_v3000)
+            _readCatalystsHeaderV3000();
         for (int i = 0; i < _n_catalysts; i++)
         {
             int index = _brxn->addCatalyst();
 
-            _readMolHeader();
+            if (!_v3000)
+                _readMol2000Header();
             _readMol(molfileLoader, index);
         }
-        _readCatalystsFooter();
+        if (_v3000)
+            _readCatalystsFooterV3000();
     }
 }
 
@@ -147,13 +168,8 @@ void RxnfileLoader::_readRxnHeader()
     }
 }
 
-void RxnfileLoader::_readProductsHeader()
+void RxnfileLoader::_readProductsHeaderV3000()
 {
-    if (!_v3000)
-    {
-        return;
-    }
-
     QS_DEF(Array<char>, header);
 
     _scanner.readLine(header, true);
@@ -163,13 +179,8 @@ void RxnfileLoader::_readProductsHeader()
     }
 }
 
-void RxnfileLoader::_readReactantsHeader()
+void RxnfileLoader::_readReactantsHeaderV3000()
 {
-    if (!_v3000)
-    {
-        return;
-    }
-
     QS_DEF(Array<char>, header);
 
     _scanner.readLine(header, true);
@@ -179,13 +190,8 @@ void RxnfileLoader::_readReactantsHeader()
     }
 }
 
-void RxnfileLoader::_readCatalystsHeader()
+void RxnfileLoader::_readCatalystsHeaderV3000()
 {
-    if (!_v3000)
-    {
-        return;
-    }
-
     QS_DEF(Array<char>, header);
 
     _scanner.readLine(header, true);
@@ -195,13 +201,9 @@ void RxnfileLoader::_readCatalystsHeader()
     }
 }
 
-void RxnfileLoader::_readMolHeader()
+void RxnfileLoader::_readMol2000Header()
 {
 
-    if (_v3000)
-    {
-        return;
-    }
     QS_DEF(Array<char>, header);
 
     _scanner.readLine(header, true);
@@ -209,12 +211,8 @@ void RxnfileLoader::_readMolHeader()
         throw Error("bad molecule header: %s", header.ptr());
 }
 
-void RxnfileLoader::_readReactantsFooter()
+void RxnfileLoader::_readReactantsFooterV3000()
 {
-    if (!_v3000)
-    {
-        return;
-    }
     QS_DEF(Array<char>, footer);
 
     _scanner.readLine(footer, true);
@@ -223,12 +221,8 @@ void RxnfileLoader::_readReactantsFooter()
         throw Error("bad reactants footer: %s", footer.ptr());
 }
 
-void RxnfileLoader::_readProductsFooter()
+void RxnfileLoader::_readProductsFooterV3000()
 {
-    if (!_v3000)
-    {
-        return;
-    }
     QS_DEF(Array<char>, footer);
 
     _scanner.readLine(footer, true);
@@ -237,12 +231,8 @@ void RxnfileLoader::_readProductsFooter()
         throw Error("bad products footer: %s", footer.ptr());
 }
 
-void RxnfileLoader::_readCatalystsFooter()
+void RxnfileLoader::_readCatalystsFooterV3000()
 {
-    if (!_v3000)
-    {
-        return;
-    }
     QS_DEF(Array<char>, footer);
 
     _scanner.readLine(footer, true);
@@ -257,14 +247,14 @@ void RxnfileLoader::_readMol(MolfileLoader& loader, int index)
     if (_qrxn != 0)
     {
         if (_v3000)
-            loader.loadQueryCtab3000(_qrxn->getQueryMolecule(index));
+            loader.loadQueryMolBlock3000(_qrxn->getQueryMolecule(index));
         else
             loader.loadQueryMolecule(_qrxn->getQueryMolecule(index));
     }
     else
     {
         if (_v3000)
-            loader.loadCtab3000(_rxn->getMolecule(index));
+            loader.loadMolBlock3000(_rxn->getMolecule(index));
         else
             loader.loadMolecule(_rxn->getMolecule(index));
     }

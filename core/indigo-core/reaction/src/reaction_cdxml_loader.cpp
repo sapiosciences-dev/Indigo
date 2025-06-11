@@ -20,7 +20,7 @@
 
 #include "base_cpp/scanner.h"
 #include "base_cpp/tlscont.h"
-#include "molecule/ket_commons.h"
+#include "molecule/meta_commons.h"
 #include "molecule/molecule_cdxml_loader.h"
 #include "molecule/parse_utils.h"
 #include "reaction/reaction.h"
@@ -125,6 +125,7 @@ void ReactionCdxmlLoader::loadReaction(BaseReaction& rxn)
     std::unique_ptr<CDXReader> cdx_reader = _is_binary ? std::make_unique<CDXReader>(_scanner) : std::make_unique<CDXMLReader>(_scanner);
     cdx_reader->process();
     MoleculeCdxmlLoader loader(_scanner, _is_binary);
+    loader.stereochemistry_options = stereochemistry_options;
     loader.parseCDXMLAttributes(*cdx_reader->rootElement()->firstProperty());
 
     for (auto page_elem = cdx_reader->rootElement()->firstChildElement(); page_elem->hasContent(); page_elem = page_elem->nextSiblingElement())
@@ -202,9 +203,9 @@ void ReactionCdxmlLoader::loadReaction(BaseReaction& rxn)
                 rxn.addCatalystCopy(*_pmol, 0, 0);
             else
             {
-                for (int i = 0; i < _pmol->meta().getMetaCount(KETTextObject::CID); ++i)
+                for (int i = 0; i < _pmol->meta().getMetaCount(SimpleTextObject::CID); ++i)
                 {
-                    auto& text = (KETTextObject&)_pmol->meta().getMetaObject(KETTextObject::CID, i);
+                    auto& text = (SimpleTextObject&)_pmol->meta().getMetaObject(SimpleTextObject::CID, i);
                     int idx = rxn.meta().addMetaObject(text.clone());
                     rxn.addSpecialCondition(idx, Rect2f(Vec2f(text._pos.x, text._pos.y), Vec2f(text._pos.x, text._pos.y)));
                 }

@@ -236,6 +236,17 @@ class IndigoObject:
 
         return IndigoLib.checkResult(self._lib().indigoRemove(self.id))
 
+    def macroProperties(self):
+        """Method return macro-molecules properties
+
+        Returns:
+            str: json with properties
+        """
+
+        return IndigoLib.checkResultString(
+            self._lib().indigoMacroProperties(self.id)
+        )
+
     def getOriginalFormat(self):
         """Molecule method return format molecule loaded from
 
@@ -506,6 +517,18 @@ class IndigoObject:
         return IndigoObject(
             self.session,
             IndigoLib.checkResult(self._lib().indigoIterateMolecules(self.id)),
+        )
+
+    def iterateReactions(self):
+        """Reaction method iterates reactions
+
+        Returns:
+            IndigoObject: reaction iterator
+        """
+
+        return IndigoObject(
+            self.session,
+            IndigoLib.checkResult(self._lib().indigoIterateReactions(self.id)),
         )
 
     def saveRxnfile(self, filename):
@@ -3395,7 +3418,7 @@ class IndigoObject:
 
         return IndigoLib.checkResultString(self._lib().indigoSmiles(self.id))
 
-    def saveSequence(self, filename):
+    def saveSequence(self, filename, library):
         """Saves macromolecule to monomers sequence file
 
         Args:
@@ -3406,19 +3429,50 @@ class IndigoObject:
         """
 
         return IndigoLib.checkResult(
-            self._lib().indigoSaveSequenceToFile(self.id, filename.encode())
+            self._lib().indigoSaveSequenceToFile(
+                self.id, filename.encode(), library.id
+            )
         )
 
-    def sequence(self):
+    def sequence(self, library):
         """Molecule or reaction method returns monomer sequence for the structure
 
         Returns:
             str: sequence string
         """
 
-        return IndigoLib.checkResultString(self._lib().indigoSequence(self.id))
+        return IndigoLib.checkResultString(
+            self._lib().indigoSequence(self.id, library.id)
+        )
 
-    def saveFasta(self, filename):
+    def saveSequence3Letter(self, filename, library):
+        """Saves macromolecule to monomers 3 letter sequence file
+
+        Args:
+            filename (str): full file path to the output file
+
+        Returns:
+            int: 1 if file is saved successfully
+        """
+
+        return IndigoLib.checkResult(
+            self._lib().indigoSaveSequence3LetterToFile(
+                self.id, filename.encode(), library.id
+            )
+        )
+
+    def sequence3Letter(self, library):
+        """Molecule or reaction method returns monomer 3 letter sequence for the structure
+
+        Returns:
+            str: sequence string
+        """
+
+        return IndigoLib.checkResultString(
+            self._lib().indigoSequence3Letter(self.id, library.id)
+        )
+
+    def saveFasta(self, filename, library):
         """Saves macromolecule to FASTA file
 
         Args:
@@ -3429,19 +3483,23 @@ class IndigoObject:
         """
 
         return IndigoLib.checkResult(
-            self._lib().indigoSaveFastaToFile(self.id, filename.encode())
+            self._lib().indigoSaveFastaToFile(
+                self.id, filename.encode(), library.id
+            )
         )
 
-    def fasta(self):
+    def fasta(self, library):
         """Molecule or reaction method returns FASTA for the structure
 
         Returns:
             str: FASTA string
         """
 
-        return IndigoLib.checkResultString(self._lib().indigoFasta(self.id))
+        return IndigoLib.checkResultString(
+            self._lib().indigoFasta(self.id, library.id)
+        )
 
-    def saveIdt(self, filename):
+    def saveIdt(self, filename, library):
         """Saves macromolecule to IDT file
 
         Args:
@@ -3452,17 +3510,48 @@ class IndigoObject:
         """
 
         return IndigoLib.checkResult(
-            self._lib().indigoSaveIDTToFile(self.id, filename.encode())
+            self._lib().indigoSaveIDTToFile(
+                self.id, filename.encode(), library.id
+            )
         )
 
-    def idt(self):
+    def idt(self, library):
         """Molecule or reaction method returns IDT for the structure
 
         Returns:
             str: IDT string
         """
 
-        return IndigoLib.checkResultString(self._lib().indigoIdt(self.id))
+        return IndigoLib.checkResultString(
+            self._lib().indigoIdt(self.id, library.id)
+        )
+
+    def saveHelm(self, filename, library):
+        """Saves macromolecule to HELM file
+
+        Args:
+            filename (str): full file path to the output file
+
+        Returns:
+            int: 1 if file is saved successfully
+        """
+
+        return IndigoLib.checkResult(
+            self._lib().indigoSaveHelmToFile(
+                self.id, filename.encode(), library.id
+            )
+        )
+
+    def helm(self, library):
+        """Molecule or reaction method returns Helm for the structure
+
+        Returns:
+            str: HELM string
+        """
+
+        return IndigoLib.checkResultString(
+            self._lib().indigoHelm(self.id, library.id)
+        )
 
     def smarts(self):
         """Molecule or reaction method calculates SMARTS for the structure

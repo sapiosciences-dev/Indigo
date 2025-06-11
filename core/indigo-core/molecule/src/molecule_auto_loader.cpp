@@ -33,7 +33,9 @@
 #include "molecule/molecule_json_loader.h"
 #include "molecule/molecule_name_parser.h"
 #include "molecule/molfile_loader.h"
+#include "molecule/molfile_saver.h"
 #include "molecule/monomer_commons.h"
+#include "molecule/monomers_template_library.h"
 #include "molecule/parse_utils.h"
 #include "molecule/query_molecule.h"
 #include "molecule/sdf_loader.h"
@@ -90,15 +92,15 @@ void MoleculeAutoLoader::loadQueryMolecule(QueryMolecule& qmol)
     loadMolecule(qmol);
 }
 
-void MoleculeAutoLoader::loadMolecule(BaseMolecule& mol)
+void MoleculeAutoLoader::loadMolecule(BaseMolecule& bmol)
 {
-    _loadMolecule(mol);
+    _loadMolecule(bmol);
 
-    if (!mol.isQueryMolecule())
+    if (!bmol.isQueryMolecule())
     {
-        mol.asMolecule().setIgnoreBadValenceFlag(ignore_bad_valence);
+        bmol.asMolecule().setIgnoreBadValenceFlag(ignore_bad_valence);
         if (dearomatize_on_load)
-            mol.dearomatize(arom_options);
+            bmol.dearomatize(arom_options);
     }
 }
 
@@ -255,15 +257,13 @@ void MoleculeAutoLoader::_loadMolecule(BaseMolecule& mol)
         }
     }
 
+    if (local_scanner->startsWith(kCDX_HeaderString))
     {
-        if (local_scanner->findWord(kCDX_HeaderString))
-        {
-            local_scanner->seek(kCDX_HeaderLength, SEEK_CUR);
-            MoleculeCdxmlLoader loader(*local_scanner, true);
-            loader.stereochemistry_options = stereochemistry_options;
-            loader.loadMolecule(mol);
-            return;
-        }
+        local_scanner->seek(kCDX_HeaderLength, SEEK_CUR);
+        MoleculeCdxmlLoader loader(*local_scanner, true);
+        loader.stereochemistry_options = stereochemistry_options;
+        loader.loadMolecule(mol);
+        return;
     }
 
     _scanner->skipBom();
@@ -392,13 +392,15 @@ void MoleculeAutoLoader::_loadMolecule(BaseMolecule& mol)
             const std::string kRNA = "RNA:";
             const std::string kDNA = "DNA:";
             const std::string kIDT = "IDT:";
+            const std::string kHELM = "HELM:";
 
             long long start_pos = _scanner->tell();
             if (_scanner->length() > static_cast<long long>(kRNA.size()))
             {
+                MonomerTemplateLibrary lib;
                 std::vector<char> tag(kPeptide.size() + 1, 0);
                 _scanner->readCharsFix(static_cast<int>(kRNA.size()), tag.data());
-                SequenceLoader sl(*_scanner);
+                SequenceLoader sl(*_scanner, lib);
                 if (kRNA == tag.data())
                 {
                     sl.loadSequence(mol, SequenceLoader::SeqType::RNASeq);
@@ -412,6 +414,11 @@ void MoleculeAutoLoader::_loadMolecule(BaseMolecule& mol)
                 else if (kIDT == tag.data())
                 {
                     sl.loadIdt(mol);
+                    return;
+                }
+                else if (kHELM == tag.data())
+                {
+                    // sl.loadHelm(mol);
                     return;
                 }
                 else

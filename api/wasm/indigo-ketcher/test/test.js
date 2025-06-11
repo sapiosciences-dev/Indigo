@@ -6,7 +6,7 @@ const looksSame = require('looks-same');
 let tests = []
 
 function test(group, name, fn) {
-    tests.push({group, name, fn})
+    tests.push({ group, name, fn })
 }
 
 function parseHrtimeToSeconds(hrtime) {
@@ -480,8 +480,8 @@ M  END
             var fs = require('fs');
             const cdx_data = fs.readFileSync("test64.cdx");
             const ket = indigo.convert(cdx_data, "ket", options);
-            const ket_data = indigo.convert(fs.readFileSync("test64.ket"), "ket", options);
-            fs.writeFileSync("test64a.ket", ket);
+            const ket_data = fs.readFileSync("test64.ket").toString();
+            fs.writeFileSync("test64a1.ket", ket_data);
             assert.equal(ket, ket_data);
             options.delete();
         });
@@ -580,7 +580,7 @@ M  END
         });
 
     }
-    
+
     // Dearomatize
     {
         test("dearomatize", "basic", () => {
@@ -602,7 +602,7 @@ M  END
     {
         test("layout", "basic", () => {
             let options = new indigo.MapStringString();
-            assert(indigo.layout(mol_smiles, "molfile", options).indexOf("-1.6") !== -1);
+            assert(indigo.layout(mol_smiles, "molfile", options).indexOf("-1.0") !== -1);
             options.delete();
         });
     }
@@ -680,7 +680,20 @@ M  END
             const ket_data = fs.readFileSync("test_symbols_4_styles_2_sizes.ket");
             const png = Buffer.from(indigo.render(ket_data, options), "base64");
             fs.writeFileSync("utf8_out.png", png);
-            const {equal} = await looksSame('utf8_ref.png', 'utf8_out.png');
+            const { equal } = await looksSame('utf8_ref.png', 'utf8_out.png');
+            assert(equal);
+            options.delete();
+        });
+
+        test("render", "ketcher_elliptical_arrow", async () => {
+            let options = new indigo.MapStringString();
+            options.set("render-output-format", "png");
+            options.set("render-background-color", "1,1,1");
+            var fs = require('fs');
+            const ket_data = fs.readFileSync("ketcher_elliptical_arrow.ket");
+            const png = Buffer.from(indigo.render(ket_data, options), "base64");
+            fs.writeFileSync("ketcher_elliptical_arrow_out.png", png);
+            const { equal } = await looksSame('ketcher_elliptical_arrow_ref.png', 'ketcher_elliptical_arrow_out.png');
             assert(equal);
             options.delete();
         });
@@ -693,7 +706,7 @@ M  END
             const ket_data = fs.readFileSync("ketcher_text_panel_test_regular.ket");
             const png = Buffer.from(indigo.render(ket_data, options), "base64");
             fs.writeFileSync("ketcher_text_panel_regular_out.png", png);
-            const {equal} = await looksSame('ketcher_text_panel_regular_ref.png', 'ketcher_text_panel_regular_out.png');
+            const { equal } = await looksSame('ketcher_text_panel_regular_ref.png', 'ketcher_text_panel_regular_out.png');
             assert(equal);
             options.delete();
         });
@@ -706,7 +719,7 @@ M  END
             const ket_data = fs.readFileSync("ketcher_text_panel_test_bold.ket");
             const png = Buffer.from(indigo.render(ket_data, options), "base64");
             fs.writeFileSync("ketcher_text_panel_bold_out.png", png);
-            const {equal} = await looksSame('ketcher_text_panel_bold_ref.png', 'ketcher_text_panel_bold_out.png');
+            const { equal } = await looksSame('ketcher_text_panel_bold_ref.png', 'ketcher_text_panel_bold_out.png');
             assert(equal);
             options.delete();
         });
@@ -719,7 +732,7 @@ M  END
             const ket_data = fs.readFileSync("ketcher_text_panel_test_italic.ket");
             const png = Buffer.from(indigo.render(ket_data, options), "base64");
             fs.writeFileSync("ketcher_text_panel_italic_out.png", png);
-            const {equal} = await looksSame('ketcher_text_panel_italic_ref.png', 'ketcher_text_panel_italic_out.png');
+            const { equal } = await looksSame('ketcher_text_panel_italic_ref.png', 'ketcher_text_panel_italic_out.png');
             assert(equal);
             options.delete();
         });
@@ -732,7 +745,7 @@ M  END
             const ket_data = fs.readFileSync("ketcher_text_panel_test_bold_italic.ket");
             const png = Buffer.from(indigo.render(ket_data, options), "base64");
             fs.writeFileSync("ketcher_text_panel_bold_italic_out.png", png);
-            const {equal} = await looksSame('ketcher_text_panel_bold_italic_ref.png', 'ketcher_text_panel_bold_italic_out.png');
+            const { equal } = await looksSame('ketcher_text_panel_bold_italic_ref.png', 'ketcher_text_panel_bold_italic_out.png');
             assert(equal);
             options.delete();
         });
@@ -819,62 +832,157 @@ M  END
     // RNA/DNA/PEPTIDE
     {
         test("PEPTIDE", "basic", () => {
+            var fs = require('fs');
             let options = new indigo.MapStringString();
+            const monomersLib = fs.readFileSync("monomer_library.ket");
+            options.set("monomerLibrary", monomersLib);
             options.set("output-content-type", "application/json");
             options.set("input-format", "chemical/x-peptide-sequence");
             const peptide_seq_ref = "ACDEFGHIKLMNOPQRSRUVWY";
             const peptide_ket = indigo.convert(peptide_seq_ref, "ket", options);
-            var fs = require('fs');
             // fs.writeFileSync("peptide_ref.ket", peptide_ket);
             const peptide_ket_ref = fs.readFileSync("peptide_ref.ket");
             assert.equal(peptide_ket, peptide_ket_ref.toString());
 
             const peptide_seq = indigo.convert(peptide_seq_ref, "sequence", options);
             // fs.writeFileSync("peptide_ref.seq", peptide_seq);
-            const peptide_seq_ref1= fs.readFileSync("peptide_ref.seq");
+            const peptide_seq_ref1 = fs.readFileSync("peptide_ref.seq");
             assert.equal(peptide_seq, peptide_seq_ref1.toString());
             options.delete();
+            // test autodetect
+            let ad_options = new indigo.MapStringString();
+            ad_options.set("output-content-type", "application/json");
+            ad_options.set("monomerLibrary", monomersLib);
+            ad_options.set("sequence-type", "PEPTIDE");
+            const res2 = indigo.convert(peptide_seq_ref, "ket", ad_options);
+            assert.equal(res2, peptide_ket_ref.toString());
+            ad_options.delete();
+            const bug2816_seq = "ACDGHIKMNRSRUVWY";
+            let ad2_options = new indigo.MapStringString();
+            ad2_options.set("output-content-type", "application/json");
+            ad2_options.set("monomerLibrary", monomersLib);
+            ad2_options.set("sequence-type", "PEPTIDE");
+            const res3 = indigo.convert(bug2816_seq, "ket", ad2_options);
+            // fs.writeFileSync("peptide_2816_ref.ket", peptide_ket);
+            const peptide_2816_ref = fs.readFileSync("peptide_2816_ref.ket");
+            assert.equal(res3, peptide_2816_ref.toString());
+            ad2_options.delete();
+        });
+    }
+
+    {
+        test("PEPTIDE-3-LETTER", "basic", () => {
+            var fs = require('fs');
+            let options = new indigo.MapStringString();
+            const monomersLib = fs.readFileSync("monomer_library.ket");
+            options.set("monomerLibrary", monomersLib);
+            options.set("output-content-type", "application/json");
+            options.set("input-format", "chemical/x-peptide-sequence-3-letter");
+            const peptide_seq_ref = "AlaCysAspGluPheGlyHisIleLysLeuMetAsnPylProGlnArgSerArgSecValTrpTyr";
+            const peptide_ket = JSON.parse(indigo.convert(peptide_seq_ref, "ket", options)).struct;
+            // fs.writeFileSync("peptide_ref_3_letter.ket", peptide_ket);
+            const peptide_ket_ref = fs.readFileSync("peptide_ref_3_letter.ket");
+            assert.equal(peptide_ket, peptide_ket_ref.toString());
+
+            options.set("input-format", "application/json");
+            options.set("output-content-type", "chemical/x-peptide-sequence-3-letter");
+            const peptide_seq = indigo.convert(peptide_ket_ref.toString(), "chemical/x-peptide-sequence-3-letter", options);
+            assert.equal(peptide_seq, peptide_seq_ref);
+            options.set("output-content-type", "peptide-sequence-3-letter");
+            const peptide_seq1 = indigo.convert(peptide_ket_ref.toString(), "peptide-sequence-3-letter", options);
+            assert.equal(peptide_seq1, peptide_seq_ref);
+            options.delete();
+            // test autodetect
+            let ad_options = new indigo.MapStringString();
+            ad_options.set("output-content-type", "application/json");
+            ad_options.set("monomerLibrary", monomersLib);
+            const res2 = JSON.parse(indigo.convert(peptide_seq_ref, "peptide-sequence-3-letter", ad_options)).struct;
+            assert.equal(res2, peptide_seq_ref);
+            ad_options.set("sequence-type", "PEPTIDE");
+            const res3 = JSON.parse(indigo.convert(peptide_seq_ref, "peptide-sequence-3-letter", ad_options)).struct;
+            assert.equal(res3, peptide_seq_ref);
+            ad_options.delete();
         });
     }
 
     {
         test("RNA", "basic", () => {
+            var fs = require('fs');
             let options = new indigo.MapStringString();
+            const monomersLib = fs.readFileSync("monomer_library.ket");
+            options.set("monomerLibrary", monomersLib);
             options.set("output-content-type", "application/json");
             options.set("input-format", "chemical/x-rna-sequence");
             const rna_seq_ref = "ACGTU";
             const rna_ket = indigo.convert(rna_seq_ref, "ket", options);
-            var fs = require('fs');
             // fs.writeFileSync("rna_ref.ket", rna_ket);
             const rna_ket_ref = fs.readFileSync("rna_ref.ket");
             assert.equal(rna_ket, rna_ket_ref.toString());
 
             const rna_seq = indigo.convert(rna_seq_ref, "sequence", options);
             // fs.writeFileSync("rna_ref.seq", rna_seq);
-            const rna_seq_ref1= fs.readFileSync("rna_ref.seq");
+            const rna_seq_ref1 = fs.readFileSync("rna_ref.seq");
             assert.equal(rna_seq, rna_seq_ref1.toString());
             options.delete();
+            // test autodetect
+            let ad_options = new indigo.MapStringString();
+            ad_options.set("output-content-type", "application/json");
+            ad_options.set("monomerLibrary", monomersLib);
+            ad_options.set("sequence-type", "RNA");
+            const res2 = indigo.convert(rna_seq_ref, "sequence", ad_options);
+            assert.equal(res2, rna_seq_ref1.toString());
+            ad_options.delete();
+            const bug2816_seq = "ACDGHKMNRSRUVWY";
+            let ad2_options = new indigo.MapStringString();
+            ad2_options.set("output-content-type", "application/json");
+            ad2_options.set("monomerLibrary", monomersLib);
+            ad2_options.set("sequence-type", "RNA");
+            const res3 = indigo.convert(bug2816_seq, "ket", ad2_options);
+            // fs.writeFileSync("rna_2816_ref.ket", res3);
+            const rna_2816_ref = fs.readFileSync("rna_2816_ref.ket");
+            assert.equal(res3, rna_2816_ref.toString());
+            ad2_options.delete();
         });
 
     }
 
     {
         test("DNA", "basic", () => {
+            var fs = require('fs');
             let options = new indigo.MapStringString();
+            const monomersLib = fs.readFileSync("monomer_library.ket");
+            options.set("monomerLibrary", monomersLib);
             options.set("output-content-type", "application/json");
             options.set("input-format", "chemical/x-dna-sequence");
             const dna_seq_ref = "ACGTU";
             const dna_ket = indigo.convert(dna_seq_ref, "ket", options);
-            var fs = require('fs');
             // fs.writeFileSync("dna_ref.ket", dna_ket);
             const dna_ket_ref = fs.readFileSync("dna_ref.ket");
             assert.equal(dna_ket, dna_ket_ref.toString());
 
             const dna_seq = indigo.convert(dna_seq_ref, "sequence", options);
             // fs.writeFileSync("dna_ref.seq", dna_seq);
-            const dna_seq_ref1= fs.readFileSync("dna_ref.seq");
+            const dna_seq_ref1 = fs.readFileSync("dna_ref.seq");
             assert.equal(dna_seq, dna_seq_ref1.toString());
             options.delete();
+            // test autodetect
+            let ad_options = new indigo.MapStringString();
+            ad_options.set("output-content-type", "application/json");
+            ad_options.set("monomerLibrary", monomersLib);
+            ad_options.set("sequence-type", "DNA");
+            const res2 = indigo.convert(dna_seq_ref, "sequence", ad_options);
+            assert.equal(res2, dna_seq_ref1.toString());
+            ad_options.delete();
+            const bug2816_seq = "ACDGHKMNRSRUVWY";
+            let ad2_options = new indigo.MapStringString();
+            ad2_options.set("output-content-type", "application/json");
+            ad2_options.set("monomerLibrary", monomersLib);
+            ad2_options.set("sequence-type", "RNA");
+            const res3 = indigo.convert(bug2816_seq, "ket", ad2_options);
+            // fs.writeFileSync("dna_2816_ref.ket", res3);
+            const dna_2816_ref = fs.readFileSync("dna_2816_ref.ket");
+            assert.equal(res3, dna_2816_ref.toString());
+            ad2_options.delete();
         });
 
     }
@@ -883,6 +991,8 @@ M  END
         test("PEPTIDE-FASTA", "basic", () => {
             var fs = require('fs');
             let options = new indigo.MapStringString();
+            const monomersLib = fs.readFileSync("monomer_library.ket");
+            options.set("monomerLibrary", monomersLib);
             options.set("output-content-type", "application/json");
             options.set("input-format", "chemical/x-peptide-fasta");
             const fasta = fs.readFileSync("test_peptide.fasta");
@@ -906,6 +1016,8 @@ M  END
         test("RNA-FASTA", "basic", () => {
             var fs = require('fs');
             let options = new indigo.MapStringString();
+            const monomersLib = fs.readFileSync("monomer_library.ket");
+            options.set("monomerLibrary", monomersLib);
             options.set("output-content-type", "application/json");
             options.set("input-format", "chemical/x-rna-fasta");
             const fasta = fs.readFileSync("test_rna.fasta");
@@ -929,13 +1041,15 @@ M  END
         test("DNA-FASTA", "basic", () => {
             var fs = require('fs');
             let options = new indigo.MapStringString();
+            const monomersLib = fs.readFileSync("monomer_library.ket");
+            options.set("monomerLibrary", monomersLib);
             options.set("output-content-type", "application/json");
             options.set("input-format", "chemical/x-dna-fasta");
             const fasta = fs.readFileSync("test_dna.fasta");
             const dna_ket = indigo.convert(fasta, "ket", options);
             const dna_fasta = indigo.convert(fasta, "fasta", options);
 
-            // fs.writeFileSync("test_dna_ref.ket", dna_ket);
+            fs.writeFileSync("test_dna_ref.ket", dna_ket);
             // fs.writeFileSync("test_dna_ref.fasta", dna_fasta);
 
             const dna_ket_ref = fs.readFileSync("test_dna_ref.ket");
@@ -952,19 +1066,122 @@ M  END
         test("IDT", "basic", () => {
             var fs = require('fs');
             let options = new indigo.MapStringString();
+            const monomersLib = fs.readFileSync("monomer_library.ket");
             options.set("output-content-type", "application/json");
             options.set("input-format", "chemical/x-idt");
-            const idt = "mA*mGC";
-            const res_ket = JSON.parse(indigo.convert(idt, "ket", options)).struct;
+            options.set("monomerLibrary", monomersLib);
+            const idt = "/5Phos/mA*mGC/i2MOErA//3Phos/";
+            var startTestTime = process.hrtime();
+            const res1 = indigo.convert(idt, "ket", options);
+            const elapsedSeconds = parseHrtimeToSeconds(process.hrtime(startTestTime));
+            assert.equal(elapsedSeconds < 2, true);
+            const res = indigo.convert(idt, "ket", options); // convert second time to check issue with wrong library reload
+            const res_ket = JSON.parse(res).struct;
+            // fs.writeFileSync("idt_maxmgc.ket", res_ket);
             const res_ket_ref = fs.readFileSync("idt_maxmgc.ket");
             assert.equal(res_ket, res_ket_ref.toString().trim());
             let save_options = new indigo.MapStringString();
             save_options.set("output-content-type", "application/json");
             save_options.set("input-format", "chemical/x-indigo-ket");
+            save_options.set("monomerLibrary", monomersLib);
             const res_idt = JSON.parse(indigo.convert(res_ket, "idt", save_options)).struct;
             assert.equal(idt, res_idt);
             options.delete();
             save_options.delete();
+            // check autodetect
+            let ad_options = new indigo.MapStringString();
+            ad_options.set("output-content-type", "application/json");
+            ad_options.set("monomerLibrary", monomersLib);
+            const res2 = indigo.convert(idt, "ket", ad_options);
+            const res2_ket = JSON.parse(res2).struct;
+            assert.equal(res2_ket, res_ket_ref.toString().trim());
+            ad_options.delete()
+        });
+    }
+
+    {
+        test("HELM", "basic", () => {
+            var fs = require('fs');
+            let options = new indigo.MapStringString();
+            const monomersLib = fs.readFileSync("monomer_library.ket");
+            // test autodetect
+            options.set("output-content-type", "application/json");
+            options.set("monomerLibrary", monomersLib);
+            const helm = "RNA1{P.[mR](A)[sP].[mR](G)P.[dR](C)P.[MOE](A)P.P}$$$$V2.0";
+            const res = indigo.convert(helm, "ket", options);
+            const res_ket = JSON.parse(res).struct;
+            // fs.writeFileSync("helm_maxmgc.ket", res_ket);
+            const res_ket_ref = fs.readFileSync("helm_maxmgc.ket");
+            assert.equal(res_ket, res_ket_ref.toString().trim());
+            options.delete();
+        });
+    }
+
+    {
+        test("layout", "pathway", () => {
+            var fs = require('fs');
+            const pathway = fs.readFileSync("pathway.ket");
+            let options = new indigo.MapStringString();
+            options.set('aromatize-skip-superatoms', 'true');
+            options.set('dearomatize-on-load', 'false');
+            options.set('gross-formula-add-rsites', 'true');
+            options.set('ignore-no-chiral-flag', 'false');
+            options.set('ignore-stereochemistry-errors', 'true');
+            options.set('input-format', "chemical/x-unknown");
+            options.set('mass-skip-error-on-pseudoatoms', 'false');
+            options.set('output-content-type', "application/json");
+            options.set('smart-layout', 'true');
+            let ket = JSON.parse(indigo.layout(pathway, "ket", options)).struct;            
+            // fs.writeFileSync("pathway_layout.ket", ket);
+            const ket_ref = fs.readFileSync("pathway_layout.ket");
+            assert.equal(ket, ket_ref.toString().trim());
+            options.delete();
+            assert(true);
+        });
+    }
+
+    {
+        test("macroprops", "double_dna", () => {
+            var fs = require('fs');
+            const double_dna = fs.readFileSync("props_double_dna.ket");
+            let options = new indigo.MapStringString();
+            options.set('json-saving-pretty', 'true');
+            let json = JSON.parse(indigo.calculateMacroProperties(double_dna, options)).properties;            
+            // fs.writeFileSync("props_double_dna.json", json);
+            const json_ref = fs.readFileSync("props_double_dna.json");
+            assert.equal(json, json_ref.toString().trim());
+            options.delete();
+            assert(true);
+        });
+    }
+
+    {
+        test("macroprops", "peptides_micro", () => {
+            var fs = require('fs');
+            const peptides_micro = fs.readFileSync("props_peptides_micro.ket");
+            let options = new indigo.MapStringString();
+            options.set('json-saving-pretty', 'true');
+            let json = JSON.parse(indigo.calculateMacroProperties(peptides_micro, options)).properties;            
+            // fs.writeFileSync("props_peptides_micro.json", json);
+            const json_ref = fs.readFileSync("props_peptides_micro.json");
+            assert.equal(json, json_ref.toString().trim());
+            options.delete();
+            assert(true);
+        });
+    }
+
+    {
+        test("macroprops", "peptides", () => {
+            var fs = require('fs');
+            const peptides = fs.readFileSync("props_peptides.ket");
+            let options = new indigo.MapStringString();
+            options.set('json-saving-pretty', 'true');
+            let json = JSON.parse(indigo.calculateMacroProperties(peptides, options)).properties;            
+            // fs.writeFileSync("props_peptides.json", json);
+            const json_ref = fs.readFileSync("props_peptides.json");
+            assert.equal(json, json_ref.toString().trim());
+            options.delete();
+            assert(true);
         });
     }
 

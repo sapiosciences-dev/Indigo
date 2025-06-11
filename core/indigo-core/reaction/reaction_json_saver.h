@@ -23,7 +23,8 @@
 #include <rapidjson/writer.h>
 
 #include "base_cpp/exception.h"
-#include "molecule/ket_commons.h"
+#include "layout/metalayout.h"
+#include "molecule/meta_commons.h"
 
 namespace indigo
 {
@@ -41,10 +42,10 @@ namespace indigo
         ~ReactionJsonSaver();
 
         void saveReaction(BaseReaction& rxn);
-        void saveReaction(BaseReaction& rxn, BaseMolecule& merged, MoleculeJsonSaver& json_saver);
-        void saveReactionWithMetaData(BaseReaction& rxn, BaseMolecule& merged, MoleculeJsonSaver& json_saver);
         bool add_stereo_desc;
         bool pretty_json;
+        bool use_native_precision;
+        indigo::LayoutOptions layout_options;
         DECL_ERROR;
 
     protected:
@@ -53,7 +54,6 @@ namespace indigo
     private:
         ReactionJsonSaver(const ReactionJsonSaver&); // no implicit copy
         static void _getBounds(BaseMolecule& mol, Vec2f& min_vec, Vec2f& max_vec, float scale);
-        void _fixLayout(BaseReaction& rxn);
 
         std::unordered_map<int, std::string> _arrow_type2string = {
             {ReactionComponent::ARROW_BASIC, "open-angle"},
@@ -67,7 +67,8 @@ namespace indigo
             {ReactionComponent::ARROW_EQUILIBRIUM_OPEN_ANGLE, "equilibrium-open-angle"},
             {ReactionComponent::ARROW_UNBALANCED_EQUILIBRIUM_FILLED_HALF_BOW, "unbalanced-equilibrium-filled-half-bow"},
             {ReactionComponent::ARROW_UNBALANCED_EQUILIBRIUM_LARGE_FILLED_HALF_BOW, "unbalanced-equilibrium-large-filled-half-bow"},
-            {ReactionComponent::ARROW_BOTH_ENDS_FILLED_TRIANGLE, "unbalanced-equilibrium-filled-half-triangle"}};
+            {ReactionComponent::ARROW_BOTH_ENDS_FILLED_TRIANGLE, "unbalanced-equilibrium-filled-half-triangle"},
+            {ReactionComponent::ARROW_RETROSYNTHETIC, "retrosynthetic"}};
     };
 
 } // namespace indigo

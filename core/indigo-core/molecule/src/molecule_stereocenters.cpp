@@ -38,6 +38,7 @@ MoleculeStereocenters::MoleculeStereocenters()
 void MoleculeStereocenters::clear()
 {
     _stereocenters.clear();
+    _atropocenters.clear();
 }
 
 void MoleculeStereocenters::buildFromBonds(BaseMolecule& baseMolecule, const StereocentersOptions& options, int* sensible_bonds_out)
@@ -1230,8 +1231,14 @@ bool MoleculeStereocenters::isPyramidMappingRigid_Sort(int* pyramid, const int* 
     return rigid;
 }
 
-bool MoleculeStereocenters::isPyramidMappingRigid(const int* pyramid, int size, const int* mapping)
+bool MoleculeStereocenters::isPyramidMappingRigid(const int* pyramid, int size, const Array<int>& mapping)
 {
+    for (int i = 0; i < size; ++i)
+    {
+        if (pyramid[i] >= mapping.size() || pyramid[i] < 0)
+            return false;
+    }
+
     if (size == 3)
     {
         int order[3] = {mapping[pyramid[0]], mapping[pyramid[1]], mapping[pyramid[2]]};
@@ -1492,7 +1499,14 @@ void MoleculeStereocenters::add(BaseMolecule& /* baseMolecule */, int atom_idx, 
 void MoleculeStereocenters::add_ignore(BaseMolecule& baseMolecule, int atom_idx, int type, int group, bool inverse_pyramid)
 {
     int pyramid[4];
-    _restorePyramid(baseMolecule, atom_idx, pyramid, inverse_pyramid);
+    try
+    {
+        _restorePyramid(baseMolecule, atom_idx, pyramid, inverse_pyramid);
+    }
+    catch (Exception&)
+    {
+        return;
+    }
     add_ignore(baseMolecule, atom_idx, type, group, pyramid);
 }
 
@@ -1634,7 +1648,12 @@ void MoleculeStereocenters::_restorePyramid(BaseMolecule& baseMolecule, int idx,
     }
 
     // sort pyramid indices
-    if (pyramid[3] == -1)
+    if (pyramid[2] == -1)
+    {
+        if (pyramid[0] > pyramid[1])
+            std::swap(pyramid[0], pyramid[1]);
+    }
+    else if (pyramid[3] == -1)
     {
         if (pyramid[0] > pyramid[1])
             std::swap(pyramid[0], pyramid[1]);

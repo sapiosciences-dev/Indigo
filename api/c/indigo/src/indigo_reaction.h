@@ -65,6 +65,7 @@ public:
     IndigoReaction();
     ~IndigoReaction() override;
 
+    void init(std::unique_ptr<BaseReaction>&& reaction = {});
     BaseReaction& getBaseReaction() override;
     Reaction& getReaction() override;
     const char* getName() override;
@@ -75,7 +76,27 @@ public:
 
     const char* debugInfo() const override;
 
-    Reaction rxn;
+    std::unique_ptr<BaseReaction> rxn;
+};
+
+class DLLEXPORT IndigoPathwayReaction : public IndigoBaseReaction
+{
+public:
+    IndigoPathwayReaction();
+    ~IndigoPathwayReaction() override;
+
+    void init(std::unique_ptr<BaseReaction>&& = {});
+    BaseReaction& getBaseReaction() override;
+    PathwayReaction& getPathwayReaction() override;
+    const char* getName() override;
+
+    IndigoObject* clone() override;
+
+    static IndigoPathwayReaction* cloneFrom(IndigoObject& obj);
+
+    const char* debugInfo() const override;
+
+    std::unique_ptr<BaseReaction> rxn;
 };
 
 class DLLEXPORT IndigoQueryReaction : public IndigoBaseReaction
@@ -130,7 +151,8 @@ public:
         REACTANTS,
         PRODUCTS,
         CATALYSTS,
-        MOLECULES
+        MOLECULES,
+        REACTIONS
     };
 
     IndigoReactionIter(BaseReaction& rxn, MonomersProperties& map, int subtype);

@@ -27,8 +27,8 @@
 #include <memory>
 
 #include "base_cpp/properties_map.h"
-#include "ket_commons.h"
 #include "math/algebra.h"
+#include "meta_commons.h"
 
 typedef unsigned short int UINT16;
 typedef int INT32;
@@ -60,12 +60,23 @@ namespace indigo
             int end;
         };
 
+        struct SuperatomDesc
+        {
+            SuperatomDesc(int uid) : id(uid)
+            {
+            }
+            int id;
+            std::vector<int> atoms;
+            std::vector<int> bonds;
+        };
+
     public:
         explicit MoleculeCdxmlSaver(Output& output, bool is_binary = false);
 
         ~MoleculeCdxmlSaver();
 
-        void saveMolecule(BaseMolecule& mol);
+        void saveMolecule(BaseMolecule& bmol);
+        void deleteNamelessSGroups(BaseMolecule& bmol);
         void addNodeToFragment(BaseMolecule& mol, tinyxml2::XMLElement* fragment, int atom_idx, const Vec2f& offset, Vec2f& min_coord, Vec2f& max_coord,
                                Vec2f& node_pos);
 
@@ -78,6 +89,7 @@ namespace indigo
         static const int SCALE = 30;
         static const int MAX_PAGE_HEIGHT = 64;
         const float PLUS_HALF_HEIGHT = 7.5 / 2;
+        const float RETRO_ARROW_DELTA_X = 0.5;
 
         struct Bounds
         {
@@ -90,12 +102,14 @@ namespace indigo
         void addFontToTable(int id, const char* charset, const char* name);
         void addColorTable(const char* color);
         void addColorToTable(int id, int r, int g, int b);
-        void saveMoleculeFragment(BaseMolecule& mol, const Vec2f& offset, float scale, int frag_id, int& id, std::vector<int>& ids);
-        void saveMoleculeFragment(BaseMolecule& mol, const Vec2f& offset, float scale);
+        void saveMoleculeFragment(BaseMolecule& bmol, const Vec2f& offset, float scale, int frag_id, int& id, std::map<int, int>& atom_ids);
+        void saveMoleculeFragment(BaseMolecule& bmol, const Vec2f& offset, float scale);
         void saveRGroup(PtrPool<BaseMolecule>& fragments, const Vec2f& offset, int rgnum);
 
-        void addMetaObject(const MetaObject& obj, int id);
+        void addMetaObject(const MetaObject& obj, int id, const Vec2f& offset);
         void addArrow(int id, int arrow_type, const Vec2f& beg, const Vec2f& end);
+        void addRetrosynteticArrow(int graphic_obj_id, int arrow_id, const Vec2f& arrow_beg, const Vec2f& arrow_end);
+        void addImage(int id, const EmbeddedImageObject& image);
 
         void addText(const Vec2f& pos, const char* text);
         void addText(const Vec2f& pos, const char* text, const char* alignment);
@@ -128,6 +142,12 @@ namespace indigo
     protected:
         void _collectSuperatoms(BaseMolecule& mol);
         int _getAttachmentPoint(BaseMolecule& mol, int atom_idx);
+        void _validate(BaseMolecule& bmol);
+
+        tinyxml2::XMLElement* create_text(tinyxml2::XMLElement* parent, float x, float y, const char* label_justification);
+        void add_style_str(tinyxml2::XMLElement* parent, int font, int size, int face, const char* str);
+        void add_charge(tinyxml2::XMLElement* parent, int font, int size, int charge);
+
         Output& _output;
 
         float _bond_length;
@@ -144,14 +164,13 @@ namespace indigo
 
     private:
         MoleculeCdxmlSaver(const MoleculeCdxmlSaver&); // no implicit copy
-        std::unordered_set<int> _atoms_excluded;
-        std::unordered_set<int> _bonds_excluded;
-        std::unordered_set<int> _bonds_included;
-        std::vector<OutConnection> _out_connections;
+        std::unordered_map<int, int> _superatoms_atoms;
+        std::unordered_map<int, int> _superatoms_bonds;
+        std::list<OutConnection> _out_connections;
 
-        std::vector<int> _atoms_ids;
-        std::vector<int> _bonds_ids;
-        std::map<int, std::vector<int>> _super_atoms;
+        std::map<int, int> _atoms_ids;
+        std::map<int, int> _bonds_ids;
+        std::map<int, SuperatomDesc> _superatoms;
 
         int _id;
         float _scale;

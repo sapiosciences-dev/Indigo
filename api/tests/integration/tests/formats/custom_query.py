@@ -27,7 +27,12 @@ def test_smarts_to_ket(smarts_in, expected_str):
 
 
 def test_ket_to_smarts(filename, expected_str):
-    mol = indigo.loadQueryMoleculeFromFile(os.path.join(ref_path, filename))
+    try:
+        mol = indigo.loadMoleculeFromFile(os.path.join(ref_path, filename))
+    except IndigoException as e:
+        mol = indigo.loadQueryMoleculeFromFile(
+            os.path.join(ref_path, filename)
+        )
     smarts = mol.smarts()
     if smarts == expected_str:
         print(
@@ -62,3 +67,9 @@ print(
 fname = "ket_with_bond_stereo_ether.ket"
 expected = r"[#6]1-[#6]=[#6]-[#6]=[#6]\[#6]=1"
 test_ket_to_smarts(fname, expected)
+
+print("**** #2036 ket with templates to smarts  ****")
+test_ket_to_smarts(
+    "5amd.ket",
+    "[#7]1-[#6](-[#7])=[#7]-[#6]2-[#7](-[#6]=[#7]-[#6]=2-[#6]=1-[#7])/[#6@]1-[#6]-[#6@](\\[#8]-[#15](-[H])(-[#8])=[#8])-[#6@@](/[#6]-[#8]-[H])-[#8]-1",
+)

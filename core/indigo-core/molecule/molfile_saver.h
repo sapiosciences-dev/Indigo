@@ -54,6 +54,7 @@ namespace indigo
             MODE_3000      // force saving to v3000 format
         };
         constexpr static int MAX_RING_BOND_COUNT = 4;
+        constexpr static int MAX_SUBSTITUTION_COUNT = 6;
 
         MolfileSaver(Output& output);
 
@@ -82,7 +83,8 @@ namespace indigo
     protected:
         friend class MoleculeCIPCalculator;
 
-        void _saveMolecule(BaseMolecule& mol, bool query);
+        void _saveMolecule(BaseMolecule& bmol, bool query);
+        void _validate(BaseMolecule& bmol);
         void _handleCIP(BaseMolecule& mol);
         void _handleMonomers(BaseMolecule& mol);
         void _calculateSEQIDs(BaseMolecule& mol, const std::vector<std::map<int, int>>& directions_map, std::vector<std::deque<int>>& sequences);
@@ -92,7 +94,6 @@ namespace indigo
         void _writeAtomLabel(Output& output, int label);
         void _writeMultiString(Output& output, const char* string, int len);
         void _writeCtab(Output& output, BaseMolecule& mol, bool query);
-        void _writeOccurrenceRanges(Output& out, const Array<int>& occurrences);
         void _writeRGroup(Output& output, BaseMolecule& mol, int rg_idx);
         void _writeTGroup(Output& output, BaseMolecule& mol, int tg_idx);
         void _writeCtabHeader2000(Output& output, BaseMolecule& mol);

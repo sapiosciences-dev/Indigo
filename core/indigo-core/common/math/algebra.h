@@ -21,7 +21,9 @@
 
 #include <algorithm>
 #include <cmath>
+#include <iostream>
 #include <limits>
+#include <vector>
 
 #include "base_c/defs.h"
 #include "base_cpp/exception.h"
@@ -62,7 +64,7 @@ namespace indigo
 
         static constexpr auto min_coord()
         {
-            return std::numeric_limits<decltype(x)>::min();
+            return std::numeric_limits<decltype(x)>::lowest();
         }
 
         static constexpr auto max_coord()
@@ -153,6 +155,16 @@ namespace indigo
 
         // OPERATORS:
 
+        inline bool operator<(const Vec2f& a) const
+        {
+            return std::make_pair(x, y) < std::make_pair(a.x, a.y);
+        }
+
+        inline float operator*(const Vec2f& a) const
+        {
+            return x * a.x + y * a.y;
+        }
+
         inline Vec2f operator+(const Vec2f& a) const
         {
             return Vec2f(x + a.x, y + a.y);
@@ -201,6 +213,24 @@ namespace indigo
             return *this;
         }
 
+        inline float vcos(const Vec2f& a) const
+        {
+            float scalar = *this * a;
+            float ta = length() * a.length();
+            if (ta < EPSILON)
+                ta = EPSILON;
+            return scalar / ta;
+        }
+
+        inline float vsin(const Vec2f& a) const
+        {
+            float scalar = *this * a;
+            float ta = lengthSqr() * a.lengthSqr();
+            if (ta < EPSILON)
+                ta = EPSILON;
+            return sqrt(1 - scalar * scalar / ta);
+        }
+
         DLLEXPORT bool normalize();
 
         DLLEXPORT bool normalization(const Vec2f& v);
@@ -213,7 +243,7 @@ namespace indigo
 
         DLLEXPORT float calc_angle_pos(Vec2f a, Vec2f b);
 
-        inline void scale(float s)
+        inline void scale(const float s)
         {
             x *= s;
             y *= s;
@@ -250,6 +280,7 @@ namespace indigo
         DLLEXPORT void rotateL(float si, float co);
         DLLEXPORT void rotateL(Vec2f vec);
         DLLEXPORT void rotateAroundSegmentEnd(const Vec2f& a, const Vec2f& b, float angle);
+        DLLEXPORT float relativeCross(const Vec2f& a, const Vec2f& b) const;
 
         DLLEXPORT static float distSqr(const Vec2f& a, const Vec2f& b);
         DLLEXPORT static float dist(const Vec2f& a, const Vec2f& b);
@@ -286,6 +317,36 @@ namespace indigo
         }
     };
 
+    inline bool rayIntersectsSegment(const Vec2f& beg, const Vec2f& end, const Vec2f& a, const Vec2f& b)
+    {
+        Vec2f ray = end - beg;
+
+        // Vector of the segment
+        Vec2f segment = a - b;
+
+        // Calculate the cross products
+        float cross1 = Vec2f::cross(ray, segment);
+        if (fabs(cross1) < 1e-6)
+        {
+            // Parallel segments
+            return false;
+        }
+
+        // Compute the cross product of vectors (beg - a) and (beg - b)
+        Vec2f vecBA = beg - a;
+        Vec2f vecBB = beg - b;
+
+        float t = Vec2f::cross(vecBA, segment) / cross1;
+        if (t < 0)
+        {
+            // Intersection is behind the starting point
+            return false;
+        }
+
+        float u = Vec2f::cross(vecBA, ray) / cross1;
+        return (u >= 0 && u <= 1);
+    }
+
     struct Rect2f
     {
 
@@ -320,23 +381,33 @@ namespace indigo
             return _leftBottom.x < pt.x && _leftBottom.y < pt.y && _rightTop.x > pt.x && _rightTop.y > pt.y;
         }
 
-        inline bool rayIntersectsRect(const Vec2f& begin, const Vec2f& end)
+        inline bool intersects(const Rect2f& other) const
         {
-            Vec2f v = end - begin;
-            Vec2f vr(v.y, -v.x); // perpendicular vector
-            auto lb = _leftBottom - begin;
-            auto lt = leftTop() - begin;
-            auto rt = _rightTop - begin;
-            auto rb = rightBottom() - begin;
-            // same_sign means no intersection
-            bool same_sign = std::signbit(Vec2f::dot(vr, lb)) == std::signbit(Vec2f::dot(vr, lt)) &&
-                             std::signbit(Vec2f::dot(vr, lt)) == std::signbit(Vec2f::dot(vr, rt)) &&
-                             std::signbit(Vec2f::dot(vr, rt)) == std::signbit(Vec2f::dot(vr, rb));
-
-            return !same_sign && Vec2f::cross(lb, vr) > 0 && Vec2f::cross(lt, vr) > 0 && Vec2f::cross(rt, vr) > 0 && Vec2f::cross(rb, vr) > 0;
+            return !(right() < other.left() || left() > other.right() || top() < other.bottom() || bottom() > other.top());
         }
 
-        inline double pointDistance(const Vec2f& pt)
+        inline float distanceTo(const Rect2f& other) const
+        {
+            if (intersects(other))
+                return 0.0f;
+
+            float dx = std::max(0.0f, std::max(other.left() - right(), left() - other.right()));
+            float dy = std::max(0.0f, std::max(other.bottom() - top(), bottom() - other.top()));
+
+            return (dx > 0.0f && dy > 0.0f) ? HYPOT(dx, dy) : (dx + dy);
+        }
+
+        inline bool rayIntersectsRect(const Vec2f& begin, const Vec2f& end)
+        {
+            auto lb = _leftBottom;
+            auto lt = leftTop();
+            auto rt = _rightTop;
+            auto rb = rightBottom();
+            return rayIntersectsSegment(begin, end, lb, lt) || rayIntersectsSegment(begin, end, lt, rt) || rayIntersectsSegment(begin, end, rt, rb) ||
+                   rayIntersectsSegment(begin, end, rb, lb);
+        }
+
+        inline float pointDistance(const Vec2f& pt)
         {
             if (pt.x <= left())
             {
@@ -365,6 +436,12 @@ namespace indigo
         {
             _leftBottom.min(second._leftBottom);
             _rightTop.max(second._rightTop);
+        }
+
+        inline void offset(const Vec2f& offset)
+        {
+            _leftBottom += offset;
+            _rightTop += offset;
         }
 
         inline float left() const
@@ -757,6 +834,250 @@ namespace indigo
         Vec3f _norm;
         float _d;
     };
+
+    inline bool isPointOnSegment(const Vec2f& p, const Vec2f& a, const Vec2f& b)
+    {
+        float c = Vec2f::cross(p - a, b - a);
+        if (std::fabs(c) > EPSILON)
+            return false;
+        float d = (p - a) * (b - a);
+        if (d < 0)
+            return false;
+        float l = (b - a) * (b - a);
+        if (d > l)
+            return false;
+        return true;
+    }
+
+    // Ray casting algorithm
+    inline bool isPointInPolygon(const Vec2f& p, const std::vector<Vec2f>& poly)
+    {
+        bool in = false;
+        size_t n = poly.size();
+        for (size_t i = 0; i < n; ++i)
+        {
+            size_t j = (i + 1) % n;
+            if (isPointOnSegment(p, poly[i], poly[j]))
+                return true;
+            if (((poly[i].y > p.y) != (poly[j].y > p.y)) &&
+                (((p.x > poly[i].x) && (p.x < poly[j].x)) || (p.x < (poly[i].x + (p.y - poly[i].y) * (poly[j].x - poly[i].x) / (poly[j].y - poly[i].y)))))
+                in = !in;
+        }
+        return in;
+    }
+
+    inline std::vector<Vec2f> getPointsInsidePolygon(const std::vector<Vec2f>& polygon1, const std::vector<Vec2f>& polygon2)
+    {
+        std::vector<Vec2f> result;
+        result.reserve(polygon1.size());
+        std::copy_if(polygon1.begin(), polygon1.end(), std::back_inserter(result), [&](auto& p) { return isPointInPolygon(p, polygon2); });
+        return result;
+    }
+
+    inline bool isPointInConvexPolygon(const Vec2f& p, const std::vector<Vec2f>& poly)
+    {
+        auto cross = [](const Vec2f& a, const Vec2f& b, const Vec2f& c) { return (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x); };
+        bool sign = cross(poly.back(), poly[0], p) < 0;
+        for (size_t i = 0, n = poly.size(); i < n; ++i)
+            if ((cross(poly[i], poly[(i + 1) % n], p) < 0) != sign)
+                return false;
+        return true;
+    }
+
+    inline std::vector<Vec2f> getPointsInsideConvexPolygon(const std::vector<Vec2f>& polygon1, const std::vector<Vec2f>& polygon2)
+    {
+        std::vector<Vec2f> result;
+        result.reserve(polygon1.size());
+        std::copy_if(polygon1.begin(), polygon1.end(), std::back_inserter(result), [&](auto& p) { return isPointInConvexPolygon(p, polygon2); });
+        return result;
+    }
+
+    // Shoelace formula - triangle form
+    inline float convexPolygonArea(const std::vector<Vec2f>& poly)
+    {
+        float area = 0.0f;
+        size_t n = poly.size();
+        for (size_t i = 0; i < n; ++i)
+        {
+            const Vec2f& p1 = poly[i];
+            const Vec2f& p2 = poly[(i + 1) % n];
+            area += Vec2f::cross(p1, p2);
+        }
+        return std::abs(area) * 0.5f;
+    }
+
+    // Separating axis theorem
+    inline bool convexPolygonsIntersect(const std::vector<Vec2f>& poly1, const std::vector<Vec2f>& poly2)
+    {
+        auto project = [](const std::vector<Vec2f>& poly, const Vec2f& axis) {
+            auto [min, max] = std::minmax_element(poly.begin(), poly.end(), [&](const Vec2f& a, const Vec2f& b) { return a * axis < b * axis; });
+            return std::pair{*min * axis, *max * axis};
+        };
+
+        auto overlap = [](const auto& range1, const auto& range2) { return !(range1.first > range2.second || range2.first > range1.second); };
+
+        auto getNormals = [](const std::vector<Vec2f>& poly) {
+            std::vector<Vec2f> normals;
+            for (size_t i = 0; i < poly.size(); ++i)
+            {
+                Vec2f edge = poly[(i + 1) % poly.size()] - poly[i];
+                normals.emplace_back(-edge.y, edge.x);
+            }
+            return normals;
+        };
+
+        auto normals1 = getNormals(poly1), normals2 = getNormals(poly2);
+        for (const auto& normal : normals1)
+            if (!overlap(project(poly1, normal), project(poly2, normal)))
+                return false;
+        for (const auto& normal : normals2)
+            if (!overlap(project(poly1, normal), project(poly2, normal)))
+                return false;
+        return true;
+    }
+
+    inline Vec2f computeIntersection(const Vec2f& s, const Vec2f& e, const Vec2f& edgeStart, const Vec2f& edgeEnd)
+    {
+        float dx1 = e.x - s.x, dy1 = e.y - s.y, dx2 = edgeEnd.x - edgeStart.x, dy2 = edgeEnd.y - edgeStart.y;
+        float det = dx1 * dy2 - dy1 * dx2;
+        if (std::abs(det) < 1e-6)
+            return s;
+        float t = ((edgeStart.x - s.x) * dy2 - (edgeStart.y - s.y) * dx2) / det;
+        return {s.x + t * dx1, s.y + t * dy1};
+    }
+
+    // Sutherland–Hodgman algorithm
+    inline std::vector<Vec2f> convexClip(const std::vector<Vec2f>& subject, const std::vector<Vec2f>& clip)
+    {
+        std::vector<Vec2f> result = subject;
+        for (size_t i = 0; i < clip.size(); ++i)
+        {
+            const Vec2f& edgeStart = clip[i];
+            const Vec2f& edgeEnd = clip[(i + 1) % clip.size()];
+            std::vector<Vec2f> input = std::move(result);
+            result.clear();
+            if (input.empty())
+                break;
+            Vec2f prev = input.back();
+            for (const Vec2f& curr : input)
+            {
+                if (edgeStart.relativeCross(edgeEnd, curr) <= 0)
+                {
+                    if (edgeStart.relativeCross(edgeEnd, prev) > 0)
+                        result.push_back(computeIntersection(prev, curr, edgeStart, edgeEnd));
+                    result.push_back(curr);
+                }
+                else if (edgeStart.relativeCross(edgeEnd, prev) <= 0)
+                {
+                    result.push_back(computeIntersection(prev, curr, edgeStart, edgeEnd));
+                }
+                prev = curr;
+            }
+        }
+        return result;
+    }
+
+    inline float computeConvexContainment(const std::vector<Vec2f>& poly1, const std::vector<Vec2f>& poly2)
+    {
+        float area = convexPolygonArea(poly1);
+        if (area == 0.0f)
+            return 0.0f;
+        std::vector<Vec2f> intersection = convexClip(poly1, poly2);
+        if (intersection.empty())
+            return 0.0f;
+        float intersectionArea = convexPolygonArea(intersection);
+        if (std::abs(intersectionArea - area) < 1e-6f)
+            return 1.0f;
+        return intersectionArea / area;
+    }
+
+    inline float distancePointToEdge(const Vec2f& p, const Vec2f& a, const Vec2f& b)
+    {
+        Vec2f ab = b - a;
+        Vec2f ap = p - a;
+        float t = Vec2f::dot(ap, ab) / Vec2f::dot(ab, ab);
+        t = std::max(0.0f, std::min(1.0f, t));
+        Vec2f projection(a.x + ab.x * t, a.y + ab.y * t);
+        Vec2f diff = p - projection;
+        return diff.length();
+    }
+
+    inline float computeConvexDistance(const std::vector<Vec2f>& poly1, const std::vector<Vec2f>& poly2)
+    {
+        float minDist = std::numeric_limits<float>::max();
+        for (const auto& p : poly1)
+        {
+            float dist = std::numeric_limits<float>::max();
+            size_t n = poly2.size();
+            for (size_t i = 0; i < n; ++i)
+            {
+                float d = distancePointToEdge(p, poly2[i], poly2[(i + 1) % n]);
+                dist = std::min(dist, d);
+                if (d < minDist)
+                    break;
+            }
+            minDist = std::min(minDist, dist);
+        }
+        for (const auto& p : poly2)
+        {
+            float dist = std::numeric_limits<float>::max();
+            size_t n = poly1.size();
+            for (size_t i = 0; i < n; ++i)
+            {
+                float d = distancePointToEdge(p, poly1[i], poly1[(i + 1) % n]);
+                dist = std::min(dist, d);
+                if (d < minDist)
+                    break;
+            }
+            minDist = std::min(minDist, dist);
+        }
+        return minDist;
+    }
+
+    inline bool doesVerticalLineIntersectPolygon(float x, const std::vector<Vec2f>& poly)
+    {
+        for (size_t i = 0, n = poly.size(); i < n; ++i)
+        {
+            const Vec2f& a = poly[i];
+            const Vec2f& b = poly[(i + 1) % n];
+            if ((x > std::min(a.x, b.x) && x < std::max(a.x, b.x)))
+                return true;
+        }
+        return false;
+    }
+
+    inline bool doesHorizontalLineIntersectPolygon(float y, const std::vector<Vec2f>& poly)
+    {
+        for (size_t i = 0, n = poly.size(); i < n; ++i)
+        {
+            const Vec2f& a = poly[i];
+            const Vec2f& b = poly[(i + 1) % n];
+            if ((y > std::min(a.y, b.y) && y < std::max(a.y, b.y)))
+                return true;
+        }
+        return false;
+    }
+
+    inline bool doesRayIntersectPolygon(const Vec2f& p1, const Vec2f& p2, const std::vector<Vec2f>& poly)
+    {
+        Vec2f dir = p2 - p1;
+        for (size_t i = 0, n = poly.size(); i < n; ++i)
+        {
+            const Vec2f& A = poly[i];
+            const Vec2f& B = poly[(i + 1) % n];
+            Vec2f a = A - p1;
+            Vec2f b = B - p1;
+            Vec2f s = b - a;
+            float den = Vec2f::cross(dir, s);
+            if (std::fabs(den) <= +0.0f)
+                continue;
+            float t = Vec2f::cross(a, s) / den;
+            float u = Vec2f::cross(a, dir) / den;
+            if (t >= 0.f && u >= 0.f && u <= 1.f)
+                return true;
+        }
+        return false;
+    }
 
 } // namespace indigo
 #endif

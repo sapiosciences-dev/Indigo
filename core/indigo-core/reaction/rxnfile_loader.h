@@ -30,6 +30,7 @@ namespace indigo
     class Reaction;
     class QueryReaction;
     class MolfileLoader;
+    class PropertiesMap;
 
     class DLLEXPORT RxnfileLoader
     {
@@ -39,6 +40,8 @@ namespace indigo
 
         void loadReaction(Reaction& reaction);
         void loadQueryReaction(QueryReaction& reaction);
+        void loadReaction(Reaction& reaction, PropertiesMap& props);
+        void loadQueryReaction(QueryReaction& reaction, PropertiesMap& props);
 
         bool treat_x_as_pseudoatom;
         StereocentersOptions stereochemistry_options;
@@ -58,13 +61,13 @@ namespace indigo
 
         Scanner& _scanner;
         void _readRxnHeader();
-        void _readReactantsHeader();
-        void _readProductsHeader();
-        void _readCatalystsHeader();
-        void _readReactantsFooter();
-        void _readProductsFooter();
-        void _readCatalystsFooter();
-        void _readMolHeader();
+        void _readReactantsHeaderV3000();
+        void _readProductsHeaderV3000();
+        void _readCatalystsHeaderV3000();
+        void _readReactantsFooterV3000();
+        void _readProductsFooterV3000();
+        void _readCatalystsFooterV3000();
+        void _readMol2000Header();
         void _readMol(MolfileLoader& loader, int index);
         int _n_reactants;
         int _n_products;

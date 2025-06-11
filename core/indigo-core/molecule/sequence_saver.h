@@ -33,6 +33,8 @@ namespace indigo
 
     class Output;
     class BaseMolecule;
+    class KetDocument;
+    class KetBaseMonomer;
 
     class DLLEXPORT SequenceSaver
     {
@@ -41,21 +43,39 @@ namespace indigo
         {
             Sequence,
             FASTA,
-            IDT
+            IDT,
+            HELM,
+            Sequence3,
         };
+
+        static constexpr uint32_t SEQ_LINE_LENGTH = 80;
 
         DECL_ERROR;
 
-        SequenceSaver(Output& output);
+        SequenceSaver(Output& output, MonomerTemplateLibrary& library);
         ~SequenceSaver();
 
         void saveMolecule(BaseMolecule& mol, SeqFormat sf = SeqFormat::Sequence);
 
+        void saveKetDocument(KetDocument& doc, SeqFormat sf = SeqFormat::Sequence);
+
+    protected:
+        TGroup& getTGroup();
+        std::string saveIdt(BaseMolecule& mol, std::deque<int>& sequence);
+        void saveIdt(KetDocument& doc, std::vector<std::deque<std::string>> sequences, std::string& seq_text);
+        std::string saveHELM(BaseMolecule& mol, std::vector<std::deque<int>>& sequence);
+        std::string saveHELM(KetDocument& mol, std::vector<std::deque<std::string>> sequences);
+        void _validateSequence(BaseMolecule& bmol);
+
     private:
+        std::string getMonomerAlias(BaseMolecule& mol, int atom_idx);
+        std::string getHelmPolymerClass(BaseMolecule& mol, int atom_idx);
+        void add_monomer(KetDocument& document, const std::unique_ptr<KetBaseMonomer>& monomer, std::string& helm_string);
         SequenceSaver(const SequenceSaver&); // no implicit copy
         Output& _output;
         const MonomerTemplates& _mon_lib;
         std::unordered_map<std::pair<std::string, std::string>, std::reference_wrapper<TGroup>, pair_hash> _templates;
+        MonomerTemplateLibrary& _library;
     };
 
 } // namespace indigo

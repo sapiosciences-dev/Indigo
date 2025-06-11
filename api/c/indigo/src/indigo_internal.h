@@ -36,6 +36,7 @@
 
 #include "layout/reaction_layout.h"
 
+#include "molecule/ket_document.h"
 #include "molecule/molecule_fingerprint.h"
 #include "molecule/molecule_gross_formula.h"
 #include "molecule/molecule_ionize.h"
@@ -57,6 +58,7 @@ namespace indigo
     class BaseReaction;
     class QueryReaction;
     class Reaction;
+    class PathwayReaction;
     class Output;
     class Scanner;
     class SdfLoader;
@@ -66,6 +68,7 @@ namespace indigo
     class PropertiesMap;
     class MoleculeJsonSaver;
     class ReactionJsonSaver;
+    class PathwayReactionJsonSaver;
 
     typedef ObjArray<PropertiesMap> MonomersProperties;
 } // namespace indigo
@@ -94,6 +97,7 @@ public:
         RDF_MOLECULE,
         RDF_REACTION,
         RDF_LOADER,
+        PATHWAY_REACTION,
         SMILES_MOLECULE,
         SMILES_REACTION,
         MULTILINE_SMILES_LOADER,
@@ -168,6 +172,8 @@ public:
         GROSS_REACTION,
         JSON_MOLECULE,
         JSON_REACTION,
+        MONOMER_LIBRARY,
+        KET_DOCUMENT,
         INDIGO_OBJECT_LAST_TYPE // must be the last element in the enum
     };
 
@@ -183,9 +189,12 @@ public:
     virtual Molecule& getMolecule();
     virtual const Molecule& getMolecule() const;
 
+    virtual KetDocument& getKetDocument();
+
     virtual BaseReaction& getBaseReaction();
     virtual QueryReaction& getQueryReaction();
     virtual Reaction& getReaction();
+    virtual PathwayReaction& getPathwayReaction();
 
     virtual IndigoObject* clone();
 
@@ -331,9 +340,8 @@ public:
     bool embedding_edges_uniqueness, find_unique_embeddings;
     int max_embeddings;
 
-    int layout_max_iterations; // default is zero -- no limit
+    int layout_max_iterations = 0; // default is zero -- no limit
     bool smart_layout = false;
-    float layout_horintervalfactor = ReactionLayout::DEFAULT_HOR_INTERVAL_FACTOR;
     bool layout_preserve_existing = false;
 
     int layout_orientation = 0;
@@ -347,7 +355,8 @@ public:
     void initMolfileSaver(MolfileSaver& saver);
     void initRxnfileSaver(RxnfileSaver& saver);
     void initMoleculeJsonSaver(MoleculeJsonSaver& saver);
-    void initReactionJsonSaver(ReactionJsonSaver& saver);
+    void initReactionJsonSaver(ReactionJsonSaver& saver) const;
+    void initReactionJsonSaver(PathwayReactionJsonSaver& saver);
 
     bool preserve_ordering_in_serialize;
 
@@ -360,6 +369,8 @@ public:
     IonizeOptions ionize_options;
 
     bool scsr_ignore_chem_templates;
+
+    indigo::LayoutOptions layout_options;
 
     static const Array<char>& getErrorMessage();
     static void clearErrorMessage();
@@ -423,6 +434,7 @@ protected:
     }
 
 DLLEXPORT Indigo& indigoGetInstance();
+DLLEXPORT _SessionLocalContainer<Indigo>& indigoSelf();
 
 class DLLEXPORT IndigoError : public Exception
 {

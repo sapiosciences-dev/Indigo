@@ -27,7 +27,9 @@
 #include "base_cpp/properties_map.h"
 #include "base_cpp/red_black.h"
 #include "graph/graph.h"
+#include "ket_objects.h"
 #include "math/algebra.h"
+#include "molecule/elements.h"
 #include "molecule/metadata_storage.h"
 #include "molecule/molecule_allene_stereo.h"
 #include "molecule/molecule_arom.h"
@@ -95,7 +97,7 @@ namespace indigo
         BIOVIA_STEREO_DOWN = 6,
     };
 
-    enum layout_orientation_value
+    enum LAYOUT_ORIENTATION
     {
         UNCPECIFIED,
         HORIZONTAL,
@@ -119,6 +121,7 @@ namespace indigo
     class Molecule;
     class QueryMolecule;
     class MetaDataStorage;
+    class KetDocument;
 
     class DLLEXPORT BaseMolecule : public Graph
     {
@@ -212,15 +215,60 @@ namespace indigo
         virtual bool isPseudoAtom(int idx) = 0;
         virtual const char* getPseudoAtom(int idx) = 0;
 
+        struct _AttachOrder
+        {
+            int ap_idx;
+            Array<char> ap_id;
+        };
+
+        struct _TemplateOccurrence
+        {
+            int name_idx;              // index in _template_names
+            int class_idx;             // index in _template_classes
+            int seq_id;                // sequence id
+            int template_idx;          // template idx
+            Array<char> seq_name;      // sequence name
+            DisplayOption contracted;  // display option (-1 if undefined, 0 - expanded, 1 - contracted)
+            Array<_AttachOrder> order; // attach order info
+            _TemplateOccurrence() : name_idx(-1), class_idx(-1), seq_id(-1), template_idx(-1), contracted(DisplayOption::Undefined)
+            {
+            }
+            _TemplateOccurrence(const _TemplateOccurrence& other)
+                : name_idx(other.name_idx), class_idx(other.class_idx), seq_id(other.seq_id), template_idx(other.template_idx), contracted(other.contracted)
+            {
+                seq_name.copy(other.seq_name);
+                order.copy(other.order);
+            }
+        };
+        ObjPool<_TemplateOccurrence> _template_occurrences;
+
+        StringPool _template_classes;
+        StringPool _template_names;
+
+        virtual int addTemplateAtom(const char* text) = 0;
         virtual bool isTemplateAtom(int idx) = 0;
-        virtual const char* getTemplateAtom(int idx) = 0;
-        virtual const int getTemplateAtomSeqid(int idx) = 0;
-        virtual const char* getTemplateAtomSeqName(int idx) = 0;
-        virtual const char* getTemplateAtomClass(int idx) = 0;
-        virtual const int getTemplateAtomDisplayOption(int idx) = 0;
-        virtual const int getTemplateAtomTemplateIndex(int idx) = 0;
-        virtual void getTemplatesMap(std::unordered_map<std::pair<std::string, std::string>, std::reference_wrapper<TGroup>, pair_hash>& templates_map) = 0;
-        virtual void getTemplateAtomDirectionsMap(std::vector<std::map<int, int>>& directions_map) = 0;
+        virtual int getTemplateAtomOccurrence(int idx) = 0;
+
+        const char* getTemplateAtom(int idx);
+        const int getTemplateAtomSeqid(int idx);
+        const char* getTemplateAtomSeqName(int idx);
+        const char* getTemplateAtomClass(int idx);
+        const DisplayOption getTemplateAtomDisplayOption(int idx);
+        const int getTemplateAtomTemplateIndex(int idx);
+
+        void renameTemplateAtom(int idx, const char* text);
+        void setTemplateAtomName(int idx, const char* text);
+        void setTemplateAtomClass(int idx, const char* text);
+        void setTemplateAtomSeqid(int idx, int seq_id);
+        void setTemplateAtomSeqName(int idx, const char* seq_name);
+
+        void setTemplateAtomDisplayOption(int idx, DisplayOption contracted);
+        void setTemplateAtomTemplateIndex(int idx, int temp_idx);
+
+        bool getUnresolvedTemplatesList(BaseMolecule& bmol, std::string& unresolved);
+
+        void getTemplatesMap(std::unordered_map<std::pair<std::string, std::string>, std::reference_wrapper<TGroup>, pair_hash>& templates_map);
+        void getTemplateAtomDirectionsMap(std::vector<std::map<int, int>>& directions_map);
 
         int countRSites();
         int countTemplateAtoms();
@@ -234,7 +282,7 @@ namespace indigo
         int transformFullCTABtoSCSR(ObjArray<TGroup>& templates);
         int transformHELMtoSGroups(Array<char>& helm_class, Array<char>& helm_name, Array<char>& code, Array<char>& natreplace, StringPool& r_names);
         void transformSuperatomsToTemplates(int template_id);
-        void transformTemplatesToSuperatoms(MonomerFilterBase& filter);
+        void transformTemplatesToSuperatoms();
 
         virtual bool isRSite(int atom_idx) = 0;
         virtual dword getRSiteBits(int atom_idx) = 0;
@@ -307,6 +355,7 @@ namespace indigo
         virtual int addAtom(int label) = 0;
 
         virtual int addBond(int beg, int end, int order) = 0;
+        virtual int addBond_Silent(int beg, int end, int order) = 0;
 
         void unfoldHydrogens(Array<int>* markers_out, int max_h_cnt = -1, bool impl_h_no_throw = false, bool only_selected = false);
 
@@ -472,6 +521,10 @@ namespace indigo
 
         void getSGroupAtomsCenterPoint(SGroup& sgroup, Vec2f& res);
         void getAtomsCenterPoint(Array<int>& atoms, Vec2f& res);
+        void getAtomsCenterPoint(Vec2f& res);
+        float getBondsMeanLength();
+
+        void scale(const Vec2f& center, float scale);
 
         void getAtomSymbol(int v, Array<char>& output);
 
@@ -531,12 +584,23 @@ namespace indigo
         void getBoundingBox(Rect2f& bbox) const;
         void getBoundingBox(Rect2f& bbox, const Vec2f& minbox) const;
         void getBoundingBox(Vec2f& a, Vec2f& b) const;
+        void offsetCoordinates(const Vec3f& offset);
+        void getAtomBoundingBox(int atom_idx, float font_size, LABEL_MODE label_mode, Vec2f& bottom_left, Vec2f& top_right);
+        void getBoundingBox(float font_size, LABEL_MODE label_mode, Vec2f& bottom_left, Vec2f& top_right);
+        void getBoundingBox(float font_size, LABEL_MODE label_mode, Rect2f& bbox);
+
+        // calc convex hull
+        std::vector<Vec2f> getConvexHull(const Vec2f& min_box) const;
 
         // aliases
         bool isAlias(int atom_idx) const;
         const char* getAlias(int atom_idx) const;
         void setAlias(int atom_idx, const char* alias);
         void removeAlias(int atom_idx);
+
+        KetDocument& getKetDocument();
+
+        PtrArray<KetMonomerShape> monomer_shapes;
 
         DECL_ERROR;
 
@@ -608,6 +672,9 @@ namespace indigo
 
         RedBlackObjMap<int, Array<char>> aliases;
         RedBlackObjMap<int, PropertiesMap> _properties;
+
+        KetDocument* _document;
+        int _document_revision;
     };
 
 } // namespace indigo

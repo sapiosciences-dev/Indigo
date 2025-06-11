@@ -12,7 +12,7 @@ sys.path.append(
         os.path.join(os.path.abspath(__file__), "..", "..", "..", "common")
     )
 )
-from env_indigo import *  # noqa
+from env_indigo import Indigo, joinPathPy  # noqa
 
 indigo = Indigo()
 indigo.setOption("json-saving-pretty", True)
@@ -46,12 +46,30 @@ files = [
     "apamine",
     "1465-lr_sugar",
     "removed_phosphate",
+    "taspoglutide",
+    "1972-case1",
+    "1972-case2",
+    "chem_rna_hydro",
+    "tadfile",
+    "2708-sgroup-data",
+    "2704-stereocenters",
+    "issue_2699_rlogic",
+]
+
+native_precisipon = [
+    "2708-sgroup-data",
+    "2704-stereocenters",
+    "issue_2699_rlogic",
 ]
 
 files.sort()
 for filename in files:
     mol = indigo.loadMoleculeFromFile(os.path.join(root, filename + ".mol"))
 
+    if filename in native_precisipon:
+        indigo.setOption("json-use-native-precision", True)
+    else:
+        indigo.setOption("json-use-native-precision", False)
     # with open(os.path.join(ref_path, filename) + ".ket", "w") as file:
     #     file.write(mol.json())
     with open(os.path.join(ref_path, filename) + ".ket", "r") as file:

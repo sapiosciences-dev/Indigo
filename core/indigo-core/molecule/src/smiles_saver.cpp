@@ -81,6 +81,8 @@ void SmilesSaver::saveQueryMolecule(QueryMolecule& mol)
 
 void SmilesSaver::_saveMolecule()
 {
+    _validate(*_bmol);
+
     int i, j, k;
 
     _ignored_vertices.clear_resize(_bmol->vertexEnd());
@@ -125,7 +127,7 @@ void SmilesSaver::_saveMolecule()
         _hcount[i] = 0;
         if (_mol != 0)
         {
-            if (!_mol->isPseudoAtom(i) && !_mol->isRSite(i))
+            if (!_mol->isPseudoAtom(i) && !_mol->isTemplateAtom(i) && !_mol->isRSite(i))
                 _hcount[i] = _mol->getImplicitH_NoThrow(i, -1);
         }
         else
@@ -755,7 +757,7 @@ void SmilesSaver::_writeAtom(int idx, bool /*aromatic*/, bool lowercase, int chi
     if (charge == CHARGE_UNKNOWN)
         charge = 0;
 
-    if (_bmol->isPseudoAtom(idx)) // pseudo-atom
+    if (_bmol->isPseudoAtom(idx) || _bmol->isTemplateAtom(idx)) // pseudo-atom
     {
         if ((chirality == 0) && (charge == 0))
             _output.printf("*");
@@ -1559,14 +1561,20 @@ void SmilesSaver::writeSpecialAtom(int aid, Output& out)
         out.writeString("X_p");
     else if (query_atom_type == QueryMolecule::QUERY_ATOM_M)
         out.writeString("M_p");
-    else if (query_atom_type == QueryMolecule::QUERY_ATOM_AH)
-        out.writeString("AH_p");
     else if (query_atom_type == QueryMolecule::QUERY_ATOM_QH)
         out.writeString("QH_p");
     else if (query_atom_type == QueryMolecule::QUERY_ATOM_XH)
         out.writeString("XH_p");
     else if (query_atom_type == QueryMolecule::QUERY_ATOM_MH)
         out.writeString("MH_p");
+    else if (query_atom_type == QueryMolecule::QUERY_ATOM_AH)
+    {
+        auto label = _qmol->isAlias(aid) ? _qmol->getAlias(aid) : nullptr;
+        if (label != nullptr && strlen(label) == 1 && *label == '*')
+            out.writeString("star_e");
+        else
+            out.writeString("AH_p");
+    }
 }
 
 void SmilesSaver::_writeHighlighting()
@@ -1940,30 +1948,10 @@ void SmilesSaver::_writeRGroups()
                     _output.printf(";");
 
                 if (rgroup.occurrence.size() > 0)
-                    _writeOccurrenceRanges(_output, rgroup.occurrence);
+                    rgroup.writeOccurrence(_output);
             }
             _output.writeString("}");
         }
-    }
-}
-
-void SmilesSaver::_writeOccurrenceRanges(Output& out, const Array<int>& occurrences)
-{
-    for (int i = 0; i < occurrences.size(); i++)
-    {
-        int occurrence = occurrences[i];
-
-        if ((occurrence & 0xFFFF) == 0xFFFF)
-            out.printf(">%d", (occurrence >> 16) - 1);
-        else if ((occurrence >> 16) == (occurrence & 0xFFFF))
-            out.printf("%d", occurrence >> 16);
-        else if ((occurrence >> 16) == 0)
-            out.printf("<%d", (occurrence & 0xFFFF) + 1);
-        else
-            out.printf("%d-%d", occurrence >> 16, occurrence & 0xFFFF);
-
-        if (i != occurrences.size() - 1)
-            out.printf(",");
     }
 }
 
@@ -2205,4 +2193,11 @@ void SmilesSaver::saveFormatMode(SmilesSaver::SMILES_MODE mode, std::string& out
     default:
         throw Error("unknown SMILES format mode: %d", mode);
     }
+}
+
+void SmilesSaver::_validate(BaseMolecule& bmol)
+{
+    std::string unresolved;
+    if (bmol.getUnresolvedTemplatesList(bmol, unresolved))
+        throw Error("%s cannot be written in SMILES/SMARTS format.", unresolved.c_str());
 }

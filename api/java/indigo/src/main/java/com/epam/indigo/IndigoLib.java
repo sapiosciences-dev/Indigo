@@ -87,6 +87,8 @@ public interface IndigoLib extends Library {
 
     int indigoRemove(int item);
 
+    Pointer indigoMacroProperties(int item);
+
     Pointer indigoGetOriginalFormat(int item);
 
     int indigoCreateMolecule();
@@ -117,23 +119,41 @@ public interface IndigoLib extends Library {
 
     int indigoLoadSmartsFromBuffer(byte[] buffer, int size);
 
-    int indigoLoadSequence(int source, String seq_type);
+    int indigoLoadMonomerLibrary(int source);
 
-    int indigoLoadSequenceFromString(String str, String seq_type);
+    int indigoLoadMonomerLibraryFromString(String str);
 
-    int indigoLoadSequenceFromFile(String filename, String seq_type);
+    int indigoLoadMonomerLibraryFromFile(String filename);
 
-    int indigoLoadFasta(int source, String seq_type);
+    int indigoLoadKetDocument(int source);
 
-    int indigoLoadFastaFromString(String str, String seq_type);
+    int indigoLoadKetDocumentFromString(String str);
 
-    int indigoLoadFastaFromFile(String filename, String seq_type);
+    int indigoLoadKetDocumentFromFile(String filename);
 
-    int indigoLoadIdt(int source);
+    int indigoLoadSequence(int source, String seq_type, int library);
 
-    int indigoLoadIdtFromString(String str);
+    int indigoLoadSequenceFromString(String str, String seq_type, int library);
 
-    int indigoLoadIdtFromFile(String filename);
+    int indigoLoadSequenceFromFile(String filename, String seq_type, int library);
+
+    int indigoLoadFasta(int source, String seq_type, int library);
+
+    int indigoLoadFastaFromString(String str, String seq_type, int library);
+
+    int indigoLoadFastaFromFile(String filename, String seq_type, int library);
+
+    int indigoLoadIdt(int source, int library);
+
+    int indigoLoadIdtFromString(String str, int library);
+
+    int indigoLoadIdtFromFile(String filename, int library);
+
+    int indigoLoadHelm(int source, int library);
+
+    int indigoLoadHelmFromString(String str, int library);
+
+    int indigoLoadHelmFromFile(String filename, int library);
 
     int indigoLoadStructureFromString(String str, String params);
 
@@ -143,7 +163,9 @@ public interface IndigoLib extends Library {
 
     int indigoSaveMolfile(int molecule, int output);
 
-    int indigoSaveSequenceToFile(int molecule, String filename);
+    int indigoSaveSequenceToFile(int molecule, String filename, int library);
+
+    int indigoSaveSequence3LetterToFile(int molecule, String filename, int library);
 
     int indigoSaveFastaToFile(int molecule, String filename);
 
@@ -151,11 +173,15 @@ public interface IndigoLib extends Library {
 
     Pointer indigoMolfile(int molecule);
 
-    Pointer indigoSequence(int molecule);
+    Pointer indigoSequence(int molecule, int library);
 
-    Pointer indigoFasta(int molecule);
+    Pointer indigoSequence3Letter(int molecule, int library);
 
-    Pointer indigoIdt(int molecule);
+    Pointer indigoFasta(int molecule, int library);
+
+    Pointer indigoIdt(int molecule, int library);
+
+    Pointer indigoHelm(int molecule, int library);
 
     int indigoSaveCml(int object, int output);
 
@@ -225,6 +251,8 @@ public interface IndigoLib extends Library {
     int indigoIterateCatalysts(int reaction);
 
     int indigoIterateMolecules(int reaction);
+
+    int indigoIterateReactions(int reaction);
 
     int indigoSaveRxnfile(int reaction, int output);
 

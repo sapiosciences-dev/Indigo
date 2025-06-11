@@ -46,7 +46,7 @@ namespace indigo
 
         void checkPathNonEmpty() const;
 
-        RenderContext(const RenderOptions& opt, float sf, float lwf);
+        RenderContext(const RenderOptions& opt, float relativeThickness, float bondLineWidthFactor);
         void setDefaultScale(float scale);
         void setHDC(PVOID hdc);
         int getMaxPageSize() const;
@@ -77,9 +77,12 @@ namespace indigo
         void drawAttachmentPoint(RenderItemAttachmentPoint& ri, bool idle);
         void drawRSiteAttachmentIndex(RenderItemRSiteAttachmentIndex& ri);
         void drawLine(const Vec2f& v0, const Vec2f& v1);
+        void drawPng(const std::string& pngData, const Rect2f& bbox);
+
         void fillHex(const Vec2f& v0, const Vec2f& v1, const Vec2f& v2, const Vec2f& v3, const Vec2f& v4, const Vec2f& v5);
         void fillQuad(const Vec2f& v0, const Vec2f& v1, const Vec2f& v2, const Vec2f& v3);
         void fillQuadStripes(const Vec2f& v0r, const Vec2f& v0l, const Vec2f& v1r, const Vec2f& v1l, int cnt);
+        void fillQuadStripesSpacing(const Vec2f& v0r, const Vec2f& v0l, const Vec2f& v1r, const Vec2f& v1l, float spacing);
         void fillPentagon(const Vec2f& v0, const Vec2f& v1, const Vec2f& v2, const Vec2f& v3, const Vec2f& v4);
         void drawQuad(const Vec2f& v0, const Vec2f& v1, const Vec2f& v2, const Vec2f& v3);
         void drawTriangleZigzag(const Vec2f& v0, const Vec2f& v1, const Vec2f& v2, int cnt);
@@ -123,6 +126,8 @@ namespace indigo
         void drawBothEndsArrow(const Vec2f& p1, const Vec2f& p2, const float width, const float headwidth, const float headsize);
         void drawEllipticalArrow(const Vec2f& p1, const Vec2f& p2, const float width, const float headwidth, const float headsize, const float height,
                                  int arrow_type);
+        void drawRetroSynthArrow(const Vec2f& p1, const Vec2f& p2, const float width, const float headwidth, const float headsize);
+
         void drawArrowHeader(const Vec2f& v, const Vec2f& dir, const float width, const float headwidth, const float headsize, bool is_bow = false);
         void drawHalfArrowHeader(const Vec2f& v, const Vec2f& dir, const float width, const float headwidth, const float headsize,
                                  const ArrowType arrow_type = ArrowType::EOpenArrow);

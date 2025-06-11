@@ -164,6 +164,21 @@ namespace indigo
         ELEM_ATOMLIST
     };
 
+    inline bool ElementHygrodenOnLeft(int el)
+    {
+        if (el == ELEM_O || el == ELEM_F || el == ELEM_S || el == ELEM_Cl || el == ELEM_Se || el == ELEM_Br || el == ELEM_I)
+            return true;
+        return false;
+    };
+
+    enum LABEL_MODE
+    {
+        LABEL_MODE_NONE,
+        LABEL_MODE_HETERO,
+        LABEL_MODE_TERMINAL_HETERO,
+        LABEL_MODE_ALL
+    };
+
     enum
     {
         RADICAL_SINGLET = 1,
@@ -184,6 +199,7 @@ namespace indigo
         DECL_ERROR;
 
         static const char* toString(int element);
+        static const char* toString(int element, int isotope);
         static int fromString(const char* name);
         static int fromString2(const char* name);
         static int fromChar(char c);
