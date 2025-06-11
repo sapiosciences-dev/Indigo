@@ -105,6 +105,7 @@ class IndigoRecord:
     subclasses:
         - IndigoRecordMolecule
         - IndigoRecordReaction
+        - IndigoRecordReactionTemplate
     """
 
     cmf: Optional[str] = None
@@ -172,6 +173,9 @@ class IndigoRecordMolecule(IndigoRecord):
 
 
 class IndigoRecordReaction(IndigoRecord):
+    pass
+
+class IndigoRecordReactionTemplate(IndigoRecord):
     pass
 
 

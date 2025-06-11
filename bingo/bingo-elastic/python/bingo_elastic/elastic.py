@@ -28,7 +28,7 @@ from indigo import Indigo, IndigoObject  # type: ignore
 from bingo_elastic.model.record import (
     IndigoRecord,
     IndigoRecordMolecule,
-    IndigoRecordReaction,
+    IndigoRecordReaction, IndigoRecordReactionTemplate,
 )
 from bingo_elastic.queries import BaseMatch, query_factory
 from bingo_elastic.utils import PostprocessType
@@ -269,6 +269,7 @@ class BingoElasticPageResult(Awaitable, Iterable):
 class IndexType(Enum):
     BINGO_MOLECULE = "bingo-molecules"
     BINGO_REACTION = "bingo-reactions"
+    BINGO_REACTION_TEMPLATE = "bingo-reaction-templates"
 
 
 def get_index_type(record: IndigoRecord) -> IndexType:
@@ -276,16 +277,20 @@ def get_index_type(record: IndigoRecord) -> IndexType:
         return IndexType.BINGO_MOLECULE
     if isinstance(record, IndigoRecordReaction):
         return IndexType.BINGO_REACTION
+    if isinstance(record, IndigoRecordReactionTemplate):
+        return IndexType.BINGO_REACTION_TEMPLATE
     raise AttributeError(f"Unknown IndigoRecord type {record}")
 
 
 def get_record_by_index(
         response: Dict, index_type: IndexType
-) -> Union[IndigoRecordMolecule, IndigoRecordReaction]:
+) -> Union[IndigoRecordMolecule, IndigoRecordReaction, IndigoRecordReactionTemplate]:
     if index_type == IndexType.BINGO_MOLECULE:
         return IndigoRecordMolecule(elastic_response=response)
     if index_type == IndexType.BINGO_REACTION:
         return IndigoRecordReaction(elastic_response=response)
+    if index_type == IndexType.BINGO_REACTION_TEMPLATE:
+        return IndigoRecordReactionTemplate(elastic_response=response)
     raise AttributeError(f"Unknown index {str(index_type)}")
 
 
