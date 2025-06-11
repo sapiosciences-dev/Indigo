@@ -1,3 +1,4 @@
+import logging
 import os
 import platform
 from ctypes import CDLL, RTLD_GLOBAL, c_void_p, sizeof
@@ -47,8 +48,9 @@ class Lib:
 
     @staticmethod
     def _library_path(name: str) -> str:
+        parent_dir = os.path.dirname
         library_base_path = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "lib"
+            parent_dir(parent_dir(os.path.abspath(__file__))), "lib"
         )
         libraries_directory = "{}-{}".format(
             Lib._system_name(), Lib._machine_name()
@@ -60,10 +62,18 @@ class Lib:
             library_base_path, libraries_directory, library_name
         )
         if not os.path.exists(library_path):
-            raise RuntimeError(
-                "Could not find native libraries for target OS in "
-                f"search directories: {library_path}"
+            logging.warning("Tested library path " + library_path + " but it does not exist. Trying for unit test path...")
+            library_base_path = os.path.join(
+                parent_dir(parent_dir(parent_dir(parent_dir(parent_dir(os.path.abspath(__file__)))))),
+                "dist", "lib")
+            library_path = os.path.join(
+                library_base_path, libraries_directory, library_name
             )
+            if not os.path.exists(library_path):
+                raise RuntimeError(
+                    "Could not find native libraries for target OS in "
+                    f"search directories: {library_path}"
+                )
         return library_path
 
     @staticmethod

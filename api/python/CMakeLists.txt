@@ -4,10 +4,11 @@ if(NOT Python3_FOUND)
     message(WARNING "Python executable not found, indigo-python could not be built")
 else()
     file(TO_NATIVE_PATH ${CMAKE_CURRENT_SOURCE_DIR} NATIVE_CURRENT_SOURCE_DIR)
+    cmake_path(GET Python3_EXECUTABLE PARENT_PATH Python3_DIR)
     add_custom_target(indigo-python
             COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_CURRENT_SOURCE_DIR}/dist
             COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_CURRENT_SOURCE_DIR}/indigo/lib
-            COMMAND ${Python3_EXECUTABLE} setup.py test
+            COMMAND ${Python3_DIR}/pytest
             COMMAND ${Python3_EXECUTABLE} setup.py bdist_wheel --plat-name=macosx_11_0_arm64 --python-tag=py3
             COMMAND ${Python3_EXECUTABLE} setup.py bdist_wheel --plat-name=macosx_10_7_intel --python-tag=py3
             COMMAND ${Python3_EXECUTABLE} setup.py bdist_wheel --plat-name=manylinux2014_aarch64 --python-tag=py3
