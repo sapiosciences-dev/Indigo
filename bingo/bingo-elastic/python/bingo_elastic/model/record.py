@@ -8,6 +8,28 @@ from indigo import Indigo, IndigoException, IndigoObject  # type: ignore
 MOL_TYPES = ["#02: <molecule>", "#03: <query reaction>", "#12: <RDFMolecule>"]
 REAC_TYPES = ["#04: <reaction>", "#05: <query reaction>"]
 
+def sanitize_indigo_query_molecule(query_mol: IndigoObject):
+    """
+    Replaces pseudo-atoms, R-groups, and wildcard atoms in an Indigo query molecule
+    with proper wildcard atoms (*).
+    """
+    for atom in query_mol.iterateAtoms():
+        atoms_to_remove = []
+        if atom.isPseudoatom() or atom.isRSite() or atom.symbol() in {'A', 'Q', 'X', 'R'}:
+            atoms_to_remove.append(atom)
+        query_mol.removeAtoms([x.index() for x in atoms_to_remove])
+    return query_mol
+
+
+def sanitize_indigo_query_reaction(query_rxn):
+    """
+    Remove all query features from reaction. This is to store a simplified version for query-query search.
+    """
+    for mol in query_rxn.iterateReactants():
+        sanitize_indigo_query_molecule(mol)
+    for mol in query_rxn.iterateProducts():
+        sanitize_indigo_query_molecule(mol)
+    return query_rxn
 
 # pylint: disable=unused-argument
 def skip_errors(instance: IndigoRecord, err: BaseException) -> None:
@@ -176,7 +198,19 @@ class IndigoRecordReaction(IndigoRecord):
     pass
 
 class IndigoRecordReactionTemplate(IndigoRecord):
-    pass
+
+    def __init__(self, **kwargs) -> None:
+        """
+        Convert the query reaction into a cleaned up version with wildcards other query features removed.
+        Then store the original in the cartridge as regular text RXN.
+        We can reverse the match if the user later provides a concrete reaction for better accuracy.
+        """
+        original_query_reaction: IndigoObject = kwargs["indigo_object"]
+        cleaned_reaction: IndigoObject = sanitize_indigo_query_reaction(original_query_reaction)
+        kwargs["indigo_object"] = cleaned_reaction
+        kwargs["original_qrxn"] = original_query_reaction.rxnfile()
+        super().__init__(**kwargs)
+
 
 
 def as_iob(indigo_record: IndigoRecord, session: Indigo) -> IndigoObject:
