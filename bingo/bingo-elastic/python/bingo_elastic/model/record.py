@@ -20,16 +20,17 @@ def sanitize_indigo_query_molecule(query_mol: IndigoObject):
         query_mol.removeAtoms([x.index() for x in atoms_to_remove])
     return query_mol
 
-
+__sanitize_indigo = Indigo()
 def sanitize_indigo_query_reaction(query_rxn):
     """
     Remove all query features from reaction. This is to store a simplified version for query-query search.
     """
-    for mol in query_rxn.iterateReactants():
+    cloned = query_rxn.clone()
+    for mol in cloned.iterateReactants():
         sanitize_indigo_query_molecule(mol)
-    for mol in query_rxn.iterateProducts():
+    for mol in cloned.iterateProducts():
         sanitize_indigo_query_molecule(mol)
-    return query_rxn
+    return __sanitize_indigo.loadReaction(cloned.rxnfile())
 
 # pylint: disable=unused-argument
 def skip_errors(instance: IndigoRecord, err: BaseException) -> None:
