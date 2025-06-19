@@ -15,22 +15,37 @@ def sanitize_indigo_query_molecule(query_mol: IndigoObject):
     """
     for atom in query_mol.iterateAtoms():
         atoms_to_remove = []
-        if atom.isPseudoatom() or atom.isRSite() or atom.symbol() in {'A', 'Q', 'X', 'R'}:
+        to_remove = False
+        if atom.isPseudoatom() or atom.isRSite():
+            to_remove = True
+        else:
+            symbol = atom.symbol()
+            if symbol in {'A', 'Q', 'X', 'M', 'AH', 'QH', 'XH', 'MH', 'NOT', 'R'} or ("[" in symbol and "]" in symbol):
+                to_remove = True
+        if to_remove:
             atoms_to_remove.append(atom)
         query_mol.removeAtoms([x.index() for x in atoms_to_remove])
     return query_mol
 
-__sanitize_indigo = Indigo()
-def sanitize_indigo_query_reaction(query_rxn):
+def sanitize_indigo_query_reaction(query_rxn: IndigoObject):
     """
     Remove all query features from reaction. This is to store a simplified version for query-query search.
     """
-    cloned = query_rxn.clone()
-    for mol in cloned.iterateReactants():
-        sanitize_indigo_query_molecule(mol)
-    for mol in cloned.iterateProducts():
-        sanitize_indigo_query_molecule(mol)
-    return __sanitize_indigo.loadReaction(cloned.rxnfile())
+    indigo: Indigo = query_rxn.session
+    cloned = indigo.createQueryReaction()
+    for mol in query_rxn.iterateReactants():
+        cloned_mol = mol.clone()
+        sanitize_indigo_query_molecule(cloned_mol)
+        if cloned_mol.countAtoms() > 0:
+            cloned.addReactant(cloned_mol)
+    for mol in query_rxn.iterateProducts():
+        cloned_mol = mol.clone()
+        sanitize_indigo_query_molecule(cloned_mol)
+        if cloned_mol.countAtoms() > 0:
+            cloned.addProduct(cloned_mol)
+    if cloned.countProducts() == 0 and cloned.countReactants() == 0:
+        raise ValueError("At least one reactant or product must contains a non-query atom in the reaction template.")
+    return indigo.loadReaction(cloned.rxnfile())
 
 # pylint: disable=unused-argument
 def skip_errors(instance: IndigoRecord, err: BaseException) -> None:
@@ -206,10 +221,11 @@ class IndigoRecordReactionTemplate(IndigoRecord):
         Then store the original in the cartridge as regular text RXN.
         We can reverse the match if the user later provides a concrete reaction for better accuracy.
         """
-        original_query_reaction: IndigoObject = kwargs["indigo_object"]
-        cleaned_reaction: IndigoObject = sanitize_indigo_query_reaction(original_query_reaction)
-        kwargs["indigo_object"] = cleaned_reaction
-        kwargs["original_qrxn"] = original_query_reaction.rxnfile()
+        if "indigo_object" in kwargs:
+            original_query_reaction: IndigoObject = kwargs["indigo_object"]
+            cleaned_reaction: IndigoObject = sanitize_indigo_query_reaction(original_query_reaction)
+            kwargs["indigo_object"] = cleaned_reaction
+            kwargs["original_qrxn"] = original_query_reaction.rxnfile()
         super().__init__(**kwargs)
 
 
