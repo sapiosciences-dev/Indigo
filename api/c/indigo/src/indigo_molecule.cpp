@@ -179,6 +179,7 @@ void IndigoQueryMolecule::parseAtomConstraint(const char* type, const char* valu
         {"total-bond-order", QueryMolecule::ATOM_TOTAL_BOND_ORDER, Int},
         {"hydrogens", QueryMolecule::ATOM_TOTAL_H, Int},
         {"substituents", QueryMolecule::ATOM_SUBSTITUENTS, Int},
+        {"substituents-as-drawn", QueryMolecule::ATOM_SUBSTITUENTS_AS_DRAWN, Int},
         {"ring", QueryMolecule::ATOM_SSSR_RINGS, Int},
         {"smallest-ring-size", QueryMolecule::ATOM_SMALLEST_RING_SIZE, Int},
         {"ring-bonds", QueryMolecule::ATOM_RING_BONDS, Int},

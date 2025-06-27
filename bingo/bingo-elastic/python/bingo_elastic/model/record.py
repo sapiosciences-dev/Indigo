@@ -19,11 +19,16 @@ def sanitize_indigo_query_molecule(query_mol: IndigoObject):
         if atom.isPseudoatom() or atom.isRSite():
             to_remove = True
         else:
+            atom.removeConstraints("substituents")
+            atom.removeConstraints("substituents-as-drawn")
             symbol = atom.symbol()
-            if symbol in {'A', 'Q', 'X', 'M', 'AH', 'QH', 'XH', 'MH', 'NOT', 'R'} or ("[" in symbol and "]" in symbol):
+            if symbol in {'A', 'Q', 'X', 'M', 'AH', 'QH', 'XH', 'MH', 'NOT', 'R', '*'}:
+                to_remove = True
+            if "[" in symbol and "]" in symbol:
                 to_remove = True
         if to_remove:
             atoms_to_remove.append(atom)
+
         query_mol.removeAtoms([x.index() for x in atoms_to_remove])
     return query_mol
 
