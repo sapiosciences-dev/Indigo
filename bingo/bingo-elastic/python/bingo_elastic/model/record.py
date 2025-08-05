@@ -85,6 +85,7 @@ class WithIndigoObject:
             # Can't create IndigoObject
             return
 
+        value_dup.dearomatize() # YQ: aromatize can crash if ran twice due to limited perception.
         value_dup.aromatize()
         fingerprints = (
             "sim",

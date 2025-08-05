@@ -254,6 +254,7 @@ struct DLLEXPORT ProductEnumeratorParams
         is_self_react = false;
         is_layout = true;
         transform_is_layout = true;
+        bypass_oversaturation_check = false;
         max_deep_level = 2;
         max_product_count = 1000;
     }
@@ -263,6 +264,7 @@ struct DLLEXPORT ProductEnumeratorParams
     bool is_self_react;
     bool is_layout;
     bool transform_is_layout;
+    bool bypass_oversaturation_check; /* YQ: if true, the oversaturation check on the implicit hydrogens and r groups will be skipped for product enumeration.*/
     int max_deep_level;
     int max_product_count;
 };

@@ -139,6 +139,7 @@ void ReactionProductEnumerator::buildProducts(void)
     rpe_state.max_deep_level = max_deep_level;
     rpe_state.max_product_count = max_product_count;
     rpe_state.is_one_tube = is_one_tube;
+    rpe_state.bypass_oversaturation_check = bypass_oversaturation_check;
 
     rpe_state.buildProduct();
 }

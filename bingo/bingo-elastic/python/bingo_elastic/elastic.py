@@ -704,6 +704,7 @@ def _compile_query(index_name: str, el_client: ElasticRepositoryT,
                 query, postprocess_actions
             )
         elif isinstance(query_subject, IndigoObject):
+            query_subject.dearomatize() # can crash if aromatize applied twice.
             query_subject.aromatize()
             query_factory("substructure", query_subject).compile(
                 query, postprocess_actions

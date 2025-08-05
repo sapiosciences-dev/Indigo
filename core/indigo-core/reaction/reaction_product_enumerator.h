@@ -35,6 +35,7 @@ namespace indigo
         bool is_multistep_reaction; /* if true - all reactants in monomer take part in reaction, false - one */
         bool is_self_react;         /* if true - monomer's molecule can react with itself, false - can't */
         bool is_one_tube;           /* if true - all monomers are in one test-tube */
+        bool bypass_oversaturation_check; /* YQ: if true, the oversaturation check on the implicit hydrogens and r groups will be skipped for product enumeration.*/
         int max_product_count;
         int max_deep_level;
         void* userdata;

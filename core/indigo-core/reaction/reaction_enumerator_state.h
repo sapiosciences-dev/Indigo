@@ -79,6 +79,7 @@ namespace indigo
         bool is_one_tube;
         bool is_same_keeping;
         bool is_transform;
+        bool bypass_oversaturation_check; /* YQ: if true, the oversaturation check on the implicit hydrogens and r groups will be skipped for product enumeration.*/
 
         int max_deep_level;
         int max_product_count;

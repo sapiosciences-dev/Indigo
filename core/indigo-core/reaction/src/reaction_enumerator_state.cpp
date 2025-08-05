@@ -160,6 +160,8 @@ ReactionEnumeratorState::ReactionEnumeratorState(ReactionEnumeratorContext& cont
     _is_rg_exist = false;
     _is_simple_transform = false;
 
+    bypass_oversaturation_check = false;
+
     _tube_idx = -1;
 
     for (int i = _reaction.reactantBegin(); i != _reaction.reactantEnd(); i = _reaction.reactantNext(i))
@@ -234,6 +236,8 @@ ReactionEnumeratorState::ReactionEnumeratorState(ReactionEnumeratorState& cur_rp
     is_transform = cur_rpe_state.is_transform;
     _is_rg_exist = cur_rpe_state._is_rg_exist;
     _is_simple_transform = cur_rpe_state._is_simple_transform;
+
+    bypass_oversaturation_check = cur_rpe_state.bypass_oversaturation_check;
 
     _is_frag_search = false;
 
@@ -735,16 +739,23 @@ bool ReactionEnumeratorState::_matchVertexCallback(Graph& subgraph, Graph& super
                 super_free_atoms_count++;
         }
 
-        if (rpe_state->_is_rg_exist && sub_free_rg_count < super_free_atoms_count)
-            return false;
+        //CHEMBUGS-33 YQ Disabled
+        if (!rpe_state->bypass_oversaturation_check) {
+            if (rpe_state->_is_rg_exist && sub_free_rg_count < super_free_atoms_count)
+                return false;
+        }
+
     }
 
     if (rpe_state->_is_rg_exist && !submolecule.isRSite(sub_idx) && !submolecule.isPseudoAtom(sub_idx))
     {
         int super_unfolded_h_cnt = supermolecule.getAtomTotalH(super_idx) - supermolecule.getImplicitH(super_idx);
 
-        if (super_v.degree() - super_unfolded_h_cnt > sub_v.degree())
-            return false;
+        //CHEMBUGS-33 YQ Disabled
+        if (!rpe_state->bypass_oversaturation_check) {
+            if (super_v.degree() - super_unfolded_h_cnt > sub_v.degree())
+                return false;
+        }
     }
 
     return res;

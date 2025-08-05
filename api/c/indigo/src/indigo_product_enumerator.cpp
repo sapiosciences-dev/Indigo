@@ -104,6 +104,7 @@ CEXPORT int indigoReactionProductEnumerate(int reaction, int monomers)
         rpe.is_self_react = self.rpe_params.is_self_react;
         rpe.max_deep_level = self.rpe_params.max_deep_level;
         rpe.max_product_count = self.rpe_params.max_product_count;
+        rpe.bypass_oversaturation_check = self.rpe_params.bypass_oversaturation_check;
 
         rpe.product_proc = product_proc;
 

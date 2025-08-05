@@ -427,6 +427,7 @@ void IndigoOptionHandlerSetter::setBasicOptionHandlers(const qword id)
     mgr->setOptionHandlerBool("scsr-ignore-chem-templates", SETTER_GETTER_BOOL_OPTION(indigo.scsr_ignore_chem_templates));
 
     mgr->setOptionHandlerBool("rpe-multistep-reactions", SETTER_GETTER_BOOL_OPTION(indigo.rpe_params.is_multistep_reactions));
+    mgr->setOptionHandlerBool("rpe-bypass-saturation-check", SETTER_GETTER_BOOL_OPTION(indigo.rpe_params.bypass_oversaturation_check));
     mgr->setOptionHandlerString("rpe-mode", indigoProductEnumeratorSetOneTubeMode, indigoProductEnumeratorGetOneTubeMode);
     mgr->setOptionHandlerBool("rpe-self-reaction", SETTER_GETTER_BOOL_OPTION(indigo.rpe_params.is_self_react));
     mgr->setOptionHandlerInt("rpe-max-depth", SETTER_GETTER_INT_OPTION(indigo.rpe_params.max_deep_level));
