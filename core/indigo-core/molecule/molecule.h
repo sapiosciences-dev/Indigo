@@ -38,15 +38,15 @@ namespace indigo
 
         void clear() override;
 
-        BaseMolecule* neu() override;
+        BaseMolecule* neu() const override;
 
         int addAtom(int label) override;
         int resetAtom(int idx, int label);
 
         void setPseudoAtom(int idx, const char* text);
 
-        bool isTemplateAtom(int idx) override;
-        int getTemplateAtomOccurrence(int idx) override;
+        bool isTemplateAtom(int idx) const override;
+        int getTemplateAtomOccurrence(int idx) const override;
         virtual int addTemplateAtom(const char* text) override;
         void setTemplateAtom(int idx, const char* text);
 
@@ -152,8 +152,6 @@ namespace indigo
         bool isPiBonded(int atom_index) const;
 
         void invalidateAtom(int index, int mask) override;
-
-        bool restoreAromaticHydrogens(bool unambiguous_only = true);
 
         bool standardize(const StandardizeOptions& options);
 

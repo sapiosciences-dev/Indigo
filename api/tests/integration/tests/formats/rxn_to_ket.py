@@ -27,6 +27,8 @@ files = [
     "2531-bad-layout",
     "2485-bad-layout",
     "rxn3000-with-macro",
+    "2591-up-down",
+    "quoted_subscript",
 ]
 
 files.sort()

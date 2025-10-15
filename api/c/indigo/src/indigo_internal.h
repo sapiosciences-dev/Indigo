@@ -40,11 +40,13 @@
 #include "molecule/molecule_fingerprint.h"
 #include "molecule/molecule_gross_formula.h"
 #include "molecule/molecule_ionize.h"
+#include "molecule/molecule_json_saver.h"
 #include "molecule/molecule_mass_options.h"
 #include "molecule/molecule_standardize_options.h"
 #include "molecule/molecule_stereocenter_options.h"
 #include "molecule/molecule_tautomer.h"
 #include "molecule/smiles_saver.h"
+
 #include "option_manager.h"
 
 /* When Indigo internal code is used dynamically the INDIGO_VERSION define
@@ -227,6 +229,7 @@ public:
     void toString(Array<char>& str) override;
 
     std::unique_ptr<GROSS_UNITS> gross;
+    bool iupacFormula;
 };
 
 class IndigoReactionGross : public IndigoObject
@@ -238,6 +241,7 @@ public:
     void toString(Array<char>& str) override;
 
     std::unique_ptr<std::pair<PtrArray<GROSS_UNITS>, PtrArray<GROSS_UNITS>>> gross;
+    bool iupacFormula;
 };
 
 struct DLLEXPORT ProductEnumeratorParams
@@ -293,7 +297,6 @@ public:
     {
         Array<char> string;
         float xyz[3];
-
         void clear();
     };
 
@@ -323,6 +326,7 @@ public:
     bool deco_ignore_errors;
 
     int molfile_saving_mode; // MolfileSaver::MODE_***, default is zero
+    KETVersion ket_saving_version;
     bool dearomatize_on_load;
     SmilesSaver::SMILES_MODE smiles_saving_format;
     bool molfile_saving_no_chiral;
@@ -332,9 +336,11 @@ public:
     bool molfile_saving_add_implicit_h;
     bool molfile_saving_add_mrv_sma;
     bool json_saving_add_stereo_desc;
+    bool json_saving_add_reaction_data;
     bool json_saving_pretty;
     bool json_use_native_precision;
     bool smiles_saving_write_name;
+    bool smiles_loading_strict_aliphatic;
     bool smiles_saving_smarts_mode;
 
     Encoding filename_encoding;

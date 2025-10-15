@@ -27,9 +27,10 @@
 #include "base_cpp/properties_map.h"
 #include "base_cpp/red_black.h"
 #include "graph/graph.h"
-#include "ket_objects.h"
 #include "math/algebra.h"
 #include "molecule/elements.h"
+#include "molecule/ket_monomer_shape.h"
+#include "molecule/ket_objects.h"
 #include "molecule/metadata_storage.h"
 #include "molecule/molecule_allene_stereo.h"
 #include "molecule/molecule_arom.h"
@@ -41,7 +42,8 @@
 #include "molecule/molecule_standardize.h"
 #include "molecule/molecule_stereocenters.h"
 #include "molecule/molecule_tgroups.h"
-#include "molecule/monomers_lib.h"
+#include "molecule/monomers_defs.h"
+#include "molecule/transformation.h"
 
 #ifdef _WIN32
 #pragma warning(push)
@@ -81,6 +83,7 @@ namespace indigo
 
     enum
     {
+        BOND_DIRECTION_MONO = 0,
         BOND_UP = 1,
         BOND_DOWN = 2,
         BOND_EITHER = 3,
@@ -122,6 +125,8 @@ namespace indigo
     class QueryMolecule;
     class MetaDataStorage;
     class KetDocument;
+    class TGroup;
+    class MonomerTemplateLibrary;
 
     class DLLEXPORT BaseMolecule : public Graph
     {
@@ -145,11 +150,11 @@ namespace indigo
             BaseMolecule& _mol;
         };
 
-        struct TemplateAttPoint
+        struct TemplateAttPoint // Monomer connection info
         {
-            int ap_occur_idx;
-            int ap_aidx;
-            Array<char> ap_id;
+            int ap_occur_idx;  // Index of the attachment point occurrence
+            int ap_aidx;       // Molecule atom index of the connection
+            Array<char> ap_id; // Attachment point id
         };
 
         BaseMolecule();
@@ -189,7 +194,7 @@ namespace indigo
         virtual void changed() override;
 
         // 'neu' means 'new' in German
-        virtual BaseMolecule* neu() = 0;
+        virtual BaseMolecule* neu() const = 0;
 
         virtual int getAtomNumber(int idx) = 0;      // > 0 -- ELEM_***, 0 -- pseudo-atom, -1 -- not sure
         virtual int getAtomCharge(int idx) = 0;      // charge or CHARGE_UNKNOWN if not sure
@@ -230,40 +235,49 @@ namespace indigo
             Array<char> seq_name;      // sequence name
             DisplayOption contracted;  // display option (-1 if undefined, 0 - expanded, 1 - contracted)
             Array<_AttachOrder> order; // attach order info
+            Transformation transform;
             _TemplateOccurrence() : name_idx(-1), class_idx(-1), seq_id(-1), template_idx(-1), contracted(DisplayOption::Undefined)
             {
             }
             _TemplateOccurrence(const _TemplateOccurrence& other)
-                : name_idx(other.name_idx), class_idx(other.class_idx), seq_id(other.seq_id), template_idx(other.template_idx), contracted(other.contracted)
+                : name_idx(other.name_idx), class_idx(other.class_idx), seq_id(other.seq_id), template_idx(other.template_idx), contracted(other.contracted),
+                  transform(other.transform)
             {
                 seq_name.copy(other.seq_name);
                 order.copy(other.order);
             }
         };
-        ObjPool<_TemplateOccurrence> _template_occurrences;
+        ObjPool<_TemplateOccurrence> _template_occurrences; // monomer info. each template atom contains index of it occurence in this array
 
         StringPool _template_classes;
         StringPool _template_names;
 
         virtual int addTemplateAtom(const char* text) = 0;
-        virtual bool isTemplateAtom(int idx) = 0;
-        virtual int getTemplateAtomOccurrence(int idx) = 0;
+        virtual bool isTemplateAtom(int idx) const = 0;
+        virtual int getTemplateAtomOccurrence(int idx) const = 0;
 
         const char* getTemplateAtom(int idx);
         const int getTemplateAtomSeqid(int idx);
         const char* getTemplateAtomSeqName(int idx);
         const char* getTemplateAtomClass(int idx);
-        const DisplayOption getTemplateAtomDisplayOption(int idx);
+        const DisplayOption getTemplateAtomDisplayOption(int idx) const;
         const int getTemplateAtomTemplateIndex(int idx);
+        const Transformation& getTemplateAtomTransform(int idx) const;
+        const KetObjectAnnotation& getTemplateAtomAnnotation(int idx) const;
+        bool hasTemplateAtomAnnotation(int idx) const;
 
         void renameTemplateAtom(int idx, const char* text);
         void setTemplateAtomName(int idx, const char* text);
         void setTemplateAtomClass(int idx, const char* text);
         void setTemplateAtomSeqid(int idx, int seq_id);
         void setTemplateAtomSeqName(int idx, const char* seq_name);
+        void setTemplateAtomAnnotation(int idx, const KetObjectAnnotation& annotation);
+
+        void setBondAnnotation(int idx, const KetObjectAnnotation& annotation);
 
         void setTemplateAtomDisplayOption(int idx, DisplayOption contracted);
         void setTemplateAtomTemplateIndex(int idx, int temp_idx);
+        void setTemplateAtomTransform(int idx, const Transformation& transform);
 
         bool getUnresolvedTemplatesList(BaseMolecule& bmol, std::string& unresolved);
 
@@ -281,7 +295,7 @@ namespace indigo
         int transformSCSRtoFullCTAB();
         int transformFullCTABtoSCSR(ObjArray<TGroup>& templates);
         int transformHELMtoSGroups(Array<char>& helm_class, Array<char>& helm_name, Array<char>& code, Array<char>& natreplace, StringPool& r_names);
-        void transformSuperatomsToTemplates(int template_id);
+        void transformSuperatomsToTemplates(int template_id, MonomerTemplateLibrary* mtl = nullptr);
         void transformTemplatesToSuperatoms();
 
         virtual bool isRSite(int atom_idx) = 0;
@@ -310,6 +324,8 @@ namespace indigo
         int attachmentPointCount() const;
         void removeAttachmentPoints();
         void getAttachmentIndicesForAtom(int atom_idx, Array<int>& res);
+        int getExpandedMonomerCount() const;
+        std::unique_ptr<BaseMolecule>& expandedMonomersToAtoms();
 
         virtual bool isSaturatedAtom(int idx) = 0;
 
@@ -372,10 +388,14 @@ namespace indigo
         void addCIP();
         void clearCIP();
         CIPDesc getAtomCIP(int atom_idx);
+        bool getShowAtomCIP(const int atomIndex);
         CIPDesc getBondCIP(int bond_idx);
 
         void setAtomCIP(int atom_idx, CIPDesc cip);
+        void setShowAtomCIP(const int atomIndex, const bool display);
         void setBondCIP(int bond_idx, CIPDesc cip);
+
+        bool restoreAromaticHydrogens(bool unambiguous_only = true);
 
         Vec3f& getAtomXyz(int idx);
         bool getMiddlePoint(int idx1, int idx2, Vec3f& vec);
@@ -414,8 +434,24 @@ namespace indigo
             return reaction_atom_exact_change;
         }
 
-        ObjPool<TemplateAttPoint> template_attachment_points;
-        ObjArray<ObjPool<int>> template_attachment_indexes;
+        const std::map<int, KetObjectAnnotation>& getBondAnnotations()
+        {
+            return _bond_annotations;
+        };
+
+        std::optional<KetAnnotation>& addAnnotation()
+        {
+            _annotation.emplace();
+            return _annotation;
+        };
+
+        const std::optional<KetAnnotation>& annotation() const
+        {
+            return _annotation;
+        };
+
+        ObjPool<TemplateAttPoint> template_attachment_points; // All used APs -
+        ObjArray<ObjPool<int>> template_attachment_indexes;   //
 
         MoleculeSGroups sgroups;
 
@@ -522,6 +558,7 @@ namespace indigo
         void getSGroupAtomsCenterPoint(SGroup& sgroup, Vec2f& res);
         void getAtomsCenterPoint(Array<int>& atoms, Vec2f& res);
         void getAtomsCenterPoint(Vec2f& res);
+        void setAtomsCenterPoint(const Vec3f& center);
         float getBondsMeanLength();
 
         void scale(const Vec2f& center, float scale);
@@ -589,6 +626,14 @@ namespace indigo
         void getBoundingBox(float font_size, LABEL_MODE label_mode, Vec2f& bottom_left, Vec2f& top_right);
         void getBoundingBox(float font_size, LABEL_MODE label_mode, Rect2f& bbox);
 
+        // Transformation
+        std::unique_ptr<BaseMolecule> applyTransformation(const Transformation& transform, const Vec2f position);
+        std::unique_ptr<BaseMolecule> applyTransformation(const Transformation& transform, const Vec3f xyz)
+        {
+            return applyTransformation(transform, Vec2f(xyz.x, xyz.y));
+        };
+
+        bool convertTemplateAtomsToSuperatoms(bool only_transformed = false);
         // calc convex hull
         std::vector<Vec2f> getConvexHull(const Vec2f& min_box) const;
 
@@ -644,17 +689,27 @@ namespace indigo
         int _createSGroupFromFragment(Array<int>& sg_atoms, const TGroup& tg, Array<int>& mapping);
         bool isAtomBelongsSGroup(int idx);
 
+        void _connectTemplateAtom(Superatom& sa, int t_idx, Array<int>& orphaned_atoms);
+        bool _replaceExpandedMonomerWithTemplate(int sg_idx, int& tg_id, MonomerTemplateLibrary& mtl, std::unordered_map<std::string, int>& added_templates,
+                                                 Array<int>& remove_atoms);
+        bool _restoreTemplateFromLibrary(TGroup& tg, MonomerTemplateLibrary& mtl, const std::string& residue_inchi);
+        void _collectSuparatomAttachmentPoints(Superatom& sa, std::unordered_map<int, std::string>& ap_ids_map);
+        static bool _findAffineTransform(BaseMolecule& src, BaseMolecule& dst, Mat23& M, const int* mapping);
+
         Array<int> _hl_atoms;
         Array<int> _hl_bonds;
         Array<int> _sl_atoms;
         Array<int> _sl_bonds;
 
         Array<int> _bond_directions;
+        std::map<int, KetObjectAnnotation> _bond_annotations;
+        std::map<int, KetObjectAnnotation> _atom_annotations;
 
         Array<Vec3f> _xyz;
         RedBlackMap<int, Vec3f> _stereo_flag_positions;
         // CIP maps should be changed to std::unordered_map
         RedBlackMap<int, CIPDesc> _cip_atoms;
+        RedBlackMap<int, bool> _show_cip_atoms;
         RedBlackMap<int, CIPDesc> _cip_bonds;
 
         ObjArray<Array<int>> _rsite_attachment_points;
@@ -670,11 +725,15 @@ namespace indigo
 
         MetaDataStorage _meta;
 
+        std::optional<KetAnnotation> _annotation;
+
         RedBlackObjMap<int, Array<char>> aliases;
         RedBlackObjMap<int, PropertiesMap> _properties;
 
         KetDocument* _document;
         int _document_revision;
+
+        std::unique_ptr<BaseMolecule> _with_expanded_monomers;
     };
 
 } // namespace indigo

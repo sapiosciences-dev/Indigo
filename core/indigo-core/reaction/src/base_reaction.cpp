@@ -23,6 +23,7 @@
 #include "molecule/ket_document_json_loader.h"
 #include "molecule/meta_commons.h"
 #include "molecule/molecule_dearom.h"
+#include "reaction/pathway_reaction.h"
 #include "reaction/reaction_json_saver.h"
 
 using namespace indigo;
@@ -114,7 +115,10 @@ void BaseReaction::clear()
     _catalystCount = 0;
     _intermediateCount = 0;
     _undefinedCount = 0;
+    _specialCount = 0;
     _allMolecules.clear();
+    _reactionBlocks.clear();
+    _specialConditions.clear();
     _types.clear();
     name.clear();
     if (_document != nullptr)
@@ -256,6 +260,14 @@ bool BaseReaction::haveCoord(BaseReaction& reaction)
     return true;
 }
 
+bool BaseReaction::hasSelection()
+{
+    for (int i = begin(); i < end(); i = next(i))
+        if (getBaseMolecule(i).hasSelection())
+            return true;
+    return false;
+}
+
 int BaseReaction::_nextElement(int type, int index)
 {
     if (index == -1)
@@ -280,6 +292,11 @@ void BaseReaction::clearAAM()
     }
 }
 
+int BaseReaction::specialConditionCount()
+{
+    return _specialConditions.size();
+}
+
 int BaseReaction::addSpecialCondition(int meta_idx, const Rect2f& bbox)
 {
     _specialConditions.push(SpecialCondition(meta_idx, bbox));
@@ -291,9 +308,9 @@ void BaseReaction::clearSpecialConditions()
     _specialConditions.clear();
 }
 
-const SpecialCondition& BaseReaction::specialCondition(int meta_idx) const
+const SpecialCondition& BaseReaction::specialCondition(int idx) const
 {
-    return _specialConditions[meta_idx];
+    return _specialConditions[idx];
 }
 
 int BaseReaction::addReactantCopy(BaseMolecule& mol, Array<int>* mapping, Array<int>* inv_mapping)
@@ -357,15 +374,15 @@ void BaseReaction::clone(BaseReaction& other, Array<int>* mol_mapping, ObjArray<
     if (mappings == 0)
         mappings = &tmp_mappings;
     mappings->clear();
-    for (i = 0; i < other.end(); ++i)
+    for (i = 0; i < other._allMolecules.end(); ++i)
         mappings->push();
 
     if (inv_mappings != 0)
         inv_mappings->clear();
 
-    for (int i = other.begin(); i < other.end(); i = other.next(i))
+    for (int i = other._allMolecules.begin(); i < other._allMolecules.end(); i = other._allMolecules.next(i))
     {
-        BaseMolecule& rmol = other.getBaseMolecule(i);
+        BaseMolecule& rmol = *other._allMolecules[i];
         QS_DEF(Array<int>, inv_mapping);
 
         switch (other._types[i])
@@ -437,6 +454,11 @@ bool BaseReaction::isQueryReaction()
 bool BaseReaction::isPathwayReaction()
 {
     return false;
+}
+
+BaseMolecule& BaseReaction::getBaseMolecule(int index)
+{
+    return *_allMolecules.at(index);
 }
 
 void BaseReaction::remove(int i)

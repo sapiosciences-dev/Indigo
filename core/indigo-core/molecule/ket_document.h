@@ -19,6 +19,7 @@
 #ifndef __ket_document__
 #define __ket_document__
 
+#include "molecule/ket_monomer_shape.h"
 #include "molecule/ket_objects.h"
 #include "molecule/monomers_template_library.h"
 
@@ -52,7 +53,7 @@ namespace indigo
         std::unique_ptr<KetBaseMonomer>& addMonomer(const std::string& alias, const std::string& template_id);
         std::unique_ptr<KetBaseMonomer>& addMonomer(const std::string& id, const std::string& alias, const std::string& template_id);
         std::unique_ptr<KetBaseMonomer>& addMonomer(const std::string& id, const std::string& alias, const std::string& template_id, const std::string& ref);
-        const std::unique_ptr<KetBaseMonomer>& getMonomerById(const std::string& ref) const;
+        std::unique_ptr<KetBaseMonomer>& getMonomerById(const std::string& ref);
 
         MonomerTemplate& addMonomerTemplate(const std::string& id, const std::string& monomer_class, IdtAlias idt_alias, bool unresolved = false);
         void addMonomerTemplate(const MonomerTemplate& monomer_template);
@@ -200,11 +201,28 @@ namespace indigo
             return _monomer_shapes;
         }
 
-        void CalculateMacroProps(Output& output, bool pretty_json = false);
+        int moleculeIdxByRef(const std::string& ref);
+
+        rapidjson::Document& jsonDocument()
+        {
+            return _json_document;
+        };
+
+        std::optional<KetAnnotation>& addAnnotation()
+        {
+            _annotation.emplace();
+            return _annotation;
+        };
+
+        const std::optional<KetAnnotation>& annotation() const
+        {
+            return _annotation;
+        };
 
     protected:
         void collect_sequence_side(const std::string& monomer_id, bool left_side, std::set<std::string>& monomers, std::set<std::string>& used_monomers,
-                                   std::deque<std::string>& sequence, std::map<std::pair<std::string, std::string>, const KetConnection&>& ap_to_connection);
+                                   std::deque<std::string>& sequence, std::map<std::pair<std::string, std::string>, const KetConnection&>& ap_to_connection,
+                                   bool for_idt);
 
     private:
         molecules_map _molecules;
@@ -226,6 +244,7 @@ namespace indigo
         rapidjson::Document _json_document;
         std::vector<std::string> _fasta_properties;
         std::vector<KetMonomerShape> _monomer_shapes;
+        std::optional<KetAnnotation> _annotation;
     };
 }
 

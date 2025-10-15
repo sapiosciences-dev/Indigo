@@ -45,6 +45,7 @@ namespace indigo
 
     enum
     {
+        _ATOM_STAR,
         _ATOM_R,
         _ATOM_A,
         _ATOM_X,
@@ -72,7 +73,7 @@ namespace indigo
             OP_AND,
             OP_OR,
             OP_NOT,
-
+            ATOM_STAR,
             ATOM_NUMBER,
             ATOM_PSEUDO,
             ATOM_RSITE,
@@ -290,7 +291,7 @@ namespace indigo
 
         void clear() override;
 
-        BaseMolecule* neu() override;
+        BaseMolecule* neu() const override;
 
         QueryMolecule& asQueryMolecule() override;
         bool isQueryMolecule() override;
@@ -323,8 +324,8 @@ namespace indigo
         const char* getPseudoAtom(int idx) override;
 
         int addTemplateAtom(const char* text) override;
-        bool isTemplateAtom(int idx) override;
-        int getTemplateAtomOccurrence(int idx) override;
+        bool isTemplateAtom(int idx) const override;
+        int getTemplateAtomOccurrence(int idx) const override;
 
         bool isRSite(int atom_idx) override;
         dword getRSiteBits(int atom_idx) override;
@@ -358,7 +359,8 @@ namespace indigo
         enum QUERY_ATOM
         {
             QUERY_ATOM_UNKNOWN = -1,
-            QUERY_ATOM_A = 0,
+            QUERY_ATOM_STAR = 0,
+            QUERY_ATOM_A,
             QUERY_ATOM_X,
             QUERY_ATOM_Q,
             QUERY_ATOM_M,

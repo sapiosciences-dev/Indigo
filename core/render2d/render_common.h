@@ -130,7 +130,8 @@ namespace indigo
             RIT_SGROUP,
             RIT_DATASGROUP,
             RIT_COMMENT,
-            RIT_TITLE
+            RIT_TITLE,
+            RIT_CIP
         };
 
         RenderItem();
@@ -144,6 +145,7 @@ namespace indigo
         Vec2f relpos; // text bearing (positive if text is entirely on the
                       // right and bottom from the bbp point)
         int color;
+        Vec3f rgb_color;
         bool highlighted;
         bool noBondOffset;
     };
@@ -238,6 +240,7 @@ namespace indigo
 
         int tibegin, ticount;
         int gibegin, gicount;
+        int cipBegin, cipCount;
         int attachmentPointBegin, attachmentPointCount;
         int rSiteAttachmentIndexBegin, rSiteAttachmentIndexCount;
 
@@ -570,6 +573,7 @@ namespace indigo
         bool showNeighborArcs;
         bool showAtomIds;
         bool showValences;
+        bool showCIPLabels;
         bool atomColoring;
         STEREO_STYLE stereoMode;
         bool showReactingCenterUnchanged;

@@ -18,7 +18,6 @@
 
 #include "indigo_internal.h"
 #include "molecule/molfile_saver.h"
-#include "molecule/smiles_saver.h"
 
 static void setStrValue(const char* source, char* dest, int len)
 {
@@ -37,6 +36,18 @@ static void indigoGetMolfileSavingMode(Array<char>& value)
 {
     Indigo& self = indigoGetInstance();
     MolfileSaver::saveFormatMode(self.molfile_saving_mode, value);
+}
+
+static void indigoGetJsonSavingVersion(Array<char>& value)
+{
+    Indigo& self = indigoGetInstance();
+    MoleculeJsonSaver::saveFormatMode(self.ket_saving_version, value);
+}
+
+static void indigoSetJsonSavingVersion(const char* version)
+{
+    Indigo& self = indigoGetInstance();
+    MoleculeJsonSaver::parseFormatMode(version, self.ket_saving_version);
 }
 
 static void indigoSetSmilesSavingFormat(const char* mode)
@@ -330,6 +341,7 @@ void IndigoOptionHandlerSetter::setBasicOptionHandlers(const qword id)
     mgr->setOptionHandlerBool("deco-save-ap-bond-orders", SETTER_GETTER_BOOL_OPTION(indigo.deco_save_ap_bond_orders));
     mgr->setOptionHandlerBool("deco-ignore-errors", SETTER_GETTER_BOOL_OPTION(indigo.deco_ignore_errors));
     mgr->setOptionHandlerString("molfile-saving-mode", indigoSetMolfileSavingMode, indigoGetMolfileSavingMode);
+    mgr->setOptionHandlerString("ket-saving-version", indigoSetJsonSavingVersion, indigoGetJsonSavingVersion);
     mgr->setOptionHandlerString("smiles-saving-format", indigoSetSmilesSavingFormat, indigoGetSmilesSavingFormat);
 
     mgr->setOptionHandlerInt("molfile-saving-no-chiral", SETTER_GETTER_INT_OPTION(indigo.molfile_saving_no_chiral));
@@ -337,11 +349,13 @@ void IndigoOptionHandlerSetter::setBasicOptionHandlers(const qword id)
     mgr->setOptionHandlerBool("molfile-saving-skip-date", SETTER_GETTER_BOOL_OPTION(indigo.molfile_saving_skip_date));
     mgr->setOptionHandlerBool("molfile-saving-add-stereo-desc", SETTER_GETTER_BOOL_OPTION(indigo.molfile_saving_add_stereo_desc));
     mgr->setOptionHandlerBool("json-saving-add-stereo-desc", SETTER_GETTER_BOOL_OPTION(indigo.json_saving_add_stereo_desc));
+    mgr->setOptionHandlerBool("json-saving-add-reaction-data", SETTER_GETTER_BOOL_OPTION(indigo.json_saving_add_reaction_data));
     mgr->setOptionHandlerBool("json-saving-pretty", SETTER_GETTER_BOOL_OPTION(indigo.json_saving_pretty));
     mgr->setOptionHandlerBool("json-use-native-precision", SETTER_GETTER_BOOL_OPTION(indigo.json_use_native_precision));
     mgr->setOptionHandlerBool("molfile-saving-add-implicit-h", SETTER_GETTER_BOOL_OPTION(indigo.molfile_saving_add_implicit_h));
     mgr->setOptionHandlerBool("molfile-saving-add-mrv-sma", SETTER_GETTER_BOOL_OPTION(indigo.molfile_saving_add_mrv_sma));
     mgr->setOptionHandlerBool("smiles-saving-write-name", SETTER_GETTER_BOOL_OPTION(indigo.smiles_saving_write_name));
+    mgr->setOptionHandlerBool("smiles-loading-strict-aliphatic", SETTER_GETTER_BOOL_OPTION(indigo.smiles_loading_strict_aliphatic));
     mgr->setOptionHandlerString("filename-encoding", indigoSetFilenameEncoding, indigoGetFilenameEncoding);
     mgr->setOptionHandlerInt("fp-ord-qwords", SETTER_GETTER_INT_OPTION(indigo.fp_params.ord_qwords));
     mgr->setOptionHandlerInt("fp-sim-qwords", SETTER_GETTER_INT_OPTION(indigo.fp_params.sim_qwords));
@@ -413,6 +427,7 @@ void IndigoOptionHandlerSetter::setBasicOptionHandlers(const qword id)
     mgr->setOptionHandlerBool("standardize-create-dative-bonds", SETTER_GETTER_BOOL_OPTION(indigo.standardize_options.create_coordination_bonds));
     mgr->setOptionHandlerBool("standardize-create-hydrogen-bonds", SETTER_GETTER_BOOL_OPTION(indigo.standardize_options.create_hydrogen_bonds));
     mgr->setOptionHandlerBool("standardize-remove-extra-stereo-bonds", SETTER_GETTER_BOOL_OPTION(indigo.standardize_options.remove_extra_stereo_bonds));
+    mgr->setOptionHandlerBool("standardize-stereo-mark-undefined", SETTER_GETTER_BOOL_OPTION(indigo.standardize_options.standardize_stereo_mark_undefined));
 
     mgr->setOptionHandlerString("pKa-model", indigoSetPkaModel, indigoGetPkaModel);
     mgr->setOptionHandlerInt("pKa-model-level", SETTER_GETTER_INT_OPTION(indigo.ionize_options.level));

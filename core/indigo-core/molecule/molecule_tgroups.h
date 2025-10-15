@@ -34,6 +34,7 @@ namespace indigo
 {
 
     class BaseMolecule;
+    class Transformation;
 
     class TGroup
     {
@@ -52,11 +53,17 @@ namespace indigo
         bool mixture;
         ObjArray<Array<char>> aliases;
         Array<float> ratios;
+        bool different_aliasHELM;
+        Array<char> aliasHELM;
+        ObjArray<Array<char>> modification_types;
+        Array<char> aliasAxoLabs;
 
         TGroup();
         ~TGroup();
 
+        std::unique_ptr<BaseMolecule> getResidue() const;
         void copy(const TGroup& other);
+        void copy_without_fragment(const TGroup& other);
         void clear();
         static int cmp(TGroup& tg1, TGroup& tg2, void* context);
 

@@ -83,9 +83,11 @@ namespace indigo
         {
             reactants.copy(other.reactants);
             products.copy(other.products);
+            catalysts.copy(other.catalysts);
         }
         Array<int> reactants;
         Array<int> products;
+        Array<int> catalysts;
     };
 
     class DLLEXPORT BaseReaction : public NonCopyable
@@ -109,12 +111,17 @@ namespace indigo
         // 'neu' means 'new' in German
         virtual BaseReaction* neu() = 0;
 
-        int begin();
-        int end();
-        int next(int i);
-        int count();
+        virtual int begin();
+        virtual int end();
+        virtual int next(int i);
+        virtual int count();
 
         void remove(int i);
+
+        PtrPool<BaseMolecule>& molecules()
+        {
+            return _allMolecules;
+        }
 
         int intermediateBegin()
         {
@@ -314,10 +321,7 @@ namespace indigo
         virtual bool isQueryReaction();
         virtual bool isPathwayReaction();
 
-        BaseMolecule& getBaseMolecule(int index)
-        {
-            return *_allMolecules.at(index);
-        }
+        virtual BaseMolecule& getBaseMolecule(int index);
 
         virtual std::unique_ptr<BaseReaction> getBaseReaction(int index) = 0;
 
@@ -336,9 +340,10 @@ namespace indigo
         int addCatalyst();
         int addIntermediate();
         int addUndefined();
+        int specialConditionCount();
         int addSpecialCondition(int meta_idx, const Rect2f& bbox);
         void clearSpecialConditions();
-        const SpecialCondition& specialCondition(int meta_idx) const;
+        const SpecialCondition& specialCondition(int idx) const;
 
         int addReactantCopy(BaseMolecule& mol, Array<int>* mapping, Array<int>* inv_mapping);
         int addProductCopy(BaseMolecule& mol, Array<int>* mapping, Array<int>* inv_mapping);
@@ -374,6 +379,8 @@ namespace indigo
         };
 
         KetDocument& getKetDocument();
+
+        bool hasSelection();
 
         DECL_ERROR;
 

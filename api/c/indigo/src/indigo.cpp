@@ -106,6 +106,7 @@ void Indigo::init()
     deco_save_ap_bond_orders = false;
     deco_ignore_errors = true;
     molfile_saving_mode = 0;
+    ket_saving_version = {1, 0, 0};
     dearomatize_on_load = false;
     smiles_saving_format = SmilesSaver::SMILES_MODE::SMILES_CHEMAXON;
     molfile_saving_no_chiral = false;
@@ -130,6 +131,7 @@ void Indigo::init()
     molfile_saving_add_stereo_desc = false;
 
     json_saving_add_stereo_desc = false;
+    json_saving_add_reaction_data = false;
     json_saving_pretty = false;
     json_use_native_precision = false;
 
@@ -137,6 +139,7 @@ void Indigo::init()
     molfile_saving_add_mrv_sma = true;
 
     smiles_saving_write_name = false;
+    smiles_loading_strict_aliphatic = false;
     smiles_saving_smarts_mode = false;
 
     aam_cancellation_timeout = 0;
@@ -205,12 +208,15 @@ void Indigo::initMoleculeJsonSaver(MoleculeJsonSaver& saver)
     saver.add_stereo_desc = json_saving_add_stereo_desc;
     saver.pretty_json = json_saving_pretty;
     saver.use_native_precision = json_use_native_precision;
+    saver.ket_version = ket_saving_version;
 }
 
 void Indigo::initReactionJsonSaver(ReactionJsonSaver& saver) const
 {
     saver.add_stereo_desc = json_saving_add_stereo_desc;
+    saver.add_reaction_data = json_saving_add_reaction_data;
     saver.pretty_json = json_saving_pretty;
+    saver.ket_version = ket_saving_version;
     saver.layout_options = layout_options;
     saver.use_native_precision = json_use_native_precision;
 }
@@ -218,6 +224,7 @@ void Indigo::initReactionJsonSaver(ReactionJsonSaver& saver) const
 void Indigo::initReactionJsonSaver(PathwayReactionJsonSaver& saver)
 {
     saver.add_stereo_desc = json_saving_add_stereo_desc;
+    saver.add_reaction_data = json_saving_add_reaction_data;
     saver.pretty_json = json_saving_pretty;
     saver.use_native_precision = json_use_native_precision;
 }

@@ -35,6 +35,7 @@ IMPL_ERROR(SmilesLoader, "SMILES loader");
 
 SmilesLoader::SmilesLoader(Scanner& scanner) : _scanner(scanner)
 {
+    strict_aliphatic = false;
     ignorable_aam = 0;
     inside_rsmiles = false;
     ignore_closing_bond_direction_mismatch = false;
@@ -513,6 +514,8 @@ void SmilesLoader::_readOtherStuff()
                         // ChemAxon's Extended SMILES notation for R-sites
                         if (_qmol != 0)
                             _qmol->resetAtom(i, new QueryMolecule::Atom(QueryMolecule::ATOM_RSITE, 0));
+                        else
+                            _mol->resetAtom(i, ELEM_RSITE);
                         _bmol->allowRGroupOnRSite(i, rnum);
 
                         // check multiple R-sites notation
@@ -534,9 +537,17 @@ void SmilesLoader::_readOtherStuff()
                         int k;
                         const Vertex& v = _bmol->getVertex(i);
 
+                        Array<int> bondsToRemove;
                         for (k = v.neiBegin(); k != v.neiEnd(); k = v.neiNext(k))
+                        {
                             _bmol->addAttachmentPoint(rnum, v.neiVertex(k));
+                            if (_bmol->findEdgeIndex(i, v.neiVertex(k)) >= 0)
+                            {
+                                bondsToRemove.push(_bmol->findEdgeIndex(i, v.neiVertex(k)));
+                            }
+                        }
                         to_remove.push(i);
+                        _bmol->removeBonds(bondsToRemove);
                     }
                     else
                     {
@@ -599,9 +610,8 @@ void SmilesLoader::_readOtherStuff()
                             {
                                 std::unique_ptr<QueryMolecule::Atom> x_atom = std::make_unique<QueryMolecule::Atom>();
 
-                                x_atom->type = QueryMolecule::OP_NONE;
+                                x_atom->type = QueryMolecule::ATOM_STAR;
                                 _qmol->resetAtom(i, x_atom.release());
-                                _qmol->setAlias(i, "*");
                             }
                             else if (label.size() == 2 && label[0] == 'X')
                             {
@@ -805,11 +815,20 @@ void SmilesLoader::_readOtherStuff()
             while (isdigit(_scanner.lookNext()))
             {
                 int idx = _scanner.readUnsigned();
-
                 if (a)
+                {
                     _bmol->highlightAtom(idx);
+                    Array<char> symb;
+                    _bmol->getAtomSymbol(idx, symb);
+                    if (_qmol)
+                        _qmol->resetAtom(idx, QueryMolecule::Atom::und(_qmol->releaseAtom(idx), new QueryMolecule::Atom(QueryMolecule::HIGHLIGHTING, true)));
+                }
                 else
+                {
                     _bmol->highlightBond(idx);
+                    if (_qmol)
+                        _qmol->resetBond(idx, QueryMolecule::Bond::und(_qmol->releaseBond(idx), new QueryMolecule::Bond(QueryMolecule::HIGHLIGHTING, true)));
+                }
 
                 if (_scanner.lookNext() == ',')
                     _scanner.skip(1);
@@ -1746,7 +1765,7 @@ void SmilesLoader::_parseMolecule()
                 atom_str.push(_scanner.readChar());
         }
 
-        _readAtom(atom_str, brackets, atom, qatom, smarts_mode, inside_rsmiles);
+        _readAtom(atom_str, brackets, atom, qatom, smarts_mode, inside_rsmiles, strict_aliphatic);
         atom.brackets = brackets;
 
         if (_qmol != 0)
@@ -1939,11 +1958,14 @@ void SmilesLoader::_loadParsedMolecule()
         }
     }
 
-    for (i = 0; i < _atoms.size(); i++)
+    if (_mol)
     {
-        if (_atoms[i].star_atom && _atoms[i].label == ELEM_PSEUDO)
+        for (i = 0; i < _atoms.size(); i++)
         {
-            _mol->setPseudoAtom(i, "A");
+            if (_atoms[i].star_atom && _atoms[i].label == ELEM_PSEUDO)
+            {
+                _mol->setPseudoAtom(i, "*");
+            }
         }
     }
 
@@ -2833,7 +2855,7 @@ void SmilesLoader::readSmartsAtomStr(const std::string& atom_str, std::unique_pt
 }
 
 void SmilesLoader::_readAtom(Array<char>& atom_str, bool first_in_brackets, _AtomDesc& atom, std::unique_ptr<QueryMolecule::Atom>& qatom, bool smarts_mode,
-                             bool inside_rsmiles)
+                             bool inside_rsmiles, bool strict_aliphatic)
 {
     if (!_readAtomLogic(atom_str, first_in_brackets, atom, qatom, smarts_mode, inside_rsmiles))
         return;
@@ -2956,6 +2978,12 @@ void SmilesLoader::_readAtom(Array<char>& atom_str, bool first_in_brackets, _Ato
                     throw Error("'A' specifier is allowed only for query molecules");
 
                 subatom = std::make_unique<QueryMolecule::Atom>(QueryMolecule::ATOM_AROMATICITY, ATOM_ALIPHATIC);
+                if (strict_aliphatic)
+                {
+                    subatom->type = QueryMolecule::OP_AND;
+                    subatom->children.add(QueryMolecule::Atom::nicht(new QueryMolecule::Atom(QueryMolecule::ATOM_NUMBER, ELEM_H)));
+                    subatom->children.add(QueryMolecule::Atom::nicht(new QueryMolecule::Atom(QueryMolecule::ATOM_NUMBER, ELEM_PSEUDO)));
+                }
             }
             else
             {

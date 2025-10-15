@@ -47,6 +47,8 @@ files = [
     "multi_merge4",
     "multi_merge5",
     "multi_merge6",
+    "pathway_no_product",
+    "3071-bad-cast",
 ]
 
 files.sort()

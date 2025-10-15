@@ -96,6 +96,9 @@ void Molecule::_mergeWithSubmolecule(BaseMolecule& bmol, const Array<int>& verti
             setTemplateAtomSeqid(newidx, mol.getTemplateAtomSeqid(vertices[i]));
             setTemplateAtomTemplateIndex(newidx, mol.getTemplateAtomTemplateIndex(vertices[i]));
             setTemplateAtomDisplayOption(newidx, mol.getTemplateAtomDisplayOption(vertices[i]));
+            setTemplateAtomTransform(newidx, mol.getTemplateAtomTransform(vertices[i]));
+            if (mol.hasTemplateAtomAnnotation(vertices[i]))
+                setTemplateAtomAnnotation(newidx, mol.getTemplateAtomAnnotation(vertices[i]));
         }
 
         bool nei_mapped = (getVertex(newidx).degree() == mol.getVertex(vertices[i]).degree());
@@ -202,7 +205,7 @@ void Molecule::_validateVertexConnectivity(int idx, bool validate)
             _atoms[idx].explicit_valence = false;
             _valence[idx] = -1;
         }
-        if (_radicals.size() > idx)
+        if (_radicals.size() > idx && _radicals[idx] <= 0)
         {
             _radicals[idx] = -1;
         }
@@ -1335,12 +1338,12 @@ const char* Molecule::getPseudoAtom(int idx)
     return res;
 }
 
-bool Molecule::isTemplateAtom(int idx)
+bool Molecule::isTemplateAtom(int idx) const
 {
     return _atoms[idx].number == ELEM_TEMPLATE;
 }
 
-int Molecule::getTemplateAtomOccurrence(int idx)
+int Molecule::getTemplateAtomOccurrence(int idx) const
 {
     const _Atom& atom = _atoms[idx];
 
@@ -1350,7 +1353,7 @@ int Molecule::getTemplateAtomOccurrence(int idx)
     return atom.template_occur_idx;
 }
 
-BaseMolecule* Molecule::neu()
+BaseMolecule* Molecule::neu() const
 {
     return new Molecule();
 }
@@ -1563,11 +1566,6 @@ bool Molecule::shouldWriteHCountEx(Molecule& mol, int idx, int h_to_ignore)
 void Molecule::invalidateAtom(int index, int mask)
 {
     BaseMolecule::invalidateAtom(index, mask);
-}
-
-bool Molecule::restoreAromaticHydrogens(bool unambiguous_only)
-{
-    return MoleculeDearomatizer::restoreHydrogens(*this, unambiguous_only);
 }
 
 bool Molecule::standardize(const StandardizeOptions& options)

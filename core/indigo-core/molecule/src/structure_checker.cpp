@@ -723,7 +723,7 @@ StructureChecker::CheckResult StructureChecker::checkMolecule(const BaseMolecule
         std::string prefix = "R-Group R" + std::to_string(idx);
         for (int i = rgr.fragments.begin(); i < rgr.fragments.end(); i = rgr.fragments.next(i))
         {
-            StructureChecker::CheckResult res = checkMolecule(rgr.fragments[i]->asMolecule(), check_types, std::vector<int>{}, std::vector<int>{});
+            StructureChecker::CheckResult res = checkMolecule(*rgr.fragments[i], check_types, std::vector<int>{}, std::vector<int>{});
             std::transform(res.messages.begin(), res.messages.end(), std::back_inserter(result.messages), [&prefix](StructureChecker::CheckMessage& msg) {
                 msg.prefix = prefix;
                 return msg;
@@ -748,7 +748,7 @@ StructureChecker::CheckResult StructureChecker::checkReaction(const BaseReaction
 #define CHECK_REACTION_COMPONENT(KIND)                                                                                                                         \
     for (auto i = brxn->KIND##Begin(); i < brxn->KIND##End(); i = brxn->KIND##Next(i))                                                                         \
     {                                                                                                                                                          \
-        CheckResult res = checkMolecule(brxn->getBaseMolecule(i), check_types);                                                                                \
+        CheckResult res = checkMolecule(brxn->BaseReaction::getBaseMolecule(i), check_types);                                                                  \
         if (!res.isEmpty())                                                                                                                                    \
         {                                                                                                                                                      \
             message(r, StructureChecker::CheckMessageCode::CHECK_MSG_REACTION, i, res);                                                                        \

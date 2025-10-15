@@ -17,6 +17,7 @@
  ***************************************************************************/
 
 #include <ctype.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -868,8 +869,11 @@ int main(int argc, char* argv[])
     indigoSetOption("ignore-stereochemistry-errors", "on");
     indigoSetOption("ignore-bad-valence", "on");
     indigoSetOption("molfile-saving-mode", "2000");
-    indigoSetOptionBool("json-saving-pretty", "on");
+    indigoSetOption("ket-saving-version", "1.0.0");
+    indigoSetOptionBool("json-saving-pretty", true);
+    // indigoSetOptionBool("json-use-native-precision", true);
     indigoSetOptionFloat("reaction-component-margin-size", 0.0f);
+    // indigoSetOptionBool("json-saving-add-reaction-data", "on");
 
     if (parseParams(&p, argc, argv) < 0)
         return -1;
@@ -922,6 +926,10 @@ int main(int argc, char* argv[])
     reader = (p.file_to_load != NULL) ? indigoReadFile(p.file_to_load) : indigoReadString(p.string_to_load);
 
     int lib = indigoLoadMonomerLibraryFromString("{\"root\":{}}");
+    // int lib = indigoLoadMonomerLibraryFromFile("monomers.ket");
+    // int lib = indigoLoadMonomerLibraryFromFile("phos.sdf");
+    // indigoSaveMonomerLibraryToFile("phos.ket", lib);
+
     if (p.mode == MODE_SINGLE_MOLECULE)
     {
         if (p.id != NULL)
@@ -951,9 +959,8 @@ int main(int argc, char* argv[])
             obj = indigoLoadHelm(reader, lib);
         }
         else
-            obj = indigoLoadMolecule(reader);
+            obj = indigoLoadMoleculeWithLib(reader, lib);
 
-        _prepare(obj, p.aromatization);
         if (p.action == ACTION_LAYOUT)
         {
             indigoLayout(obj);
@@ -1099,6 +1106,18 @@ int main(int argc, char* argv[])
                     const auto robj = indigoNext(it_id);
                     const auto rxn_id = indigoClone(robj);
                     auto rc = indigoRdfAppend(writer, rxn_id);
+                }
+                indigoFree(writer);
+            }
+            else if (p.out_ext == OEXT_SDF)
+            {
+                writer = indigoWriteFile(p.outfile);
+                auto it_id = indigoIterateMolecules(obj);
+                while (indigoHasNext(it_id))
+                {
+                    const auto robj = indigoNext(it_id);
+                    const auto mol_id = indigoClone(robj);
+                    auto rc = indigoSdfAppend(writer, mol_id);
                 }
                 indigoFree(writer);
             }

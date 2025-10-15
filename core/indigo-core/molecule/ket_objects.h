@@ -22,6 +22,7 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -31,8 +32,9 @@
 #include "common/base_cpp/exception.h"
 #include "common/math/algebra.h"
 #include "molecule/idt_alias.h"
+#include "molecule/ket_obj_with_props.h"
 #include "molecule/monomers_defs.h"
-#include <set>
+#include "molecule/transformation.h"
 
 #ifdef _WIN32
 #pragma warning(push)
@@ -42,111 +44,27 @@
 namespace indigo
 {
 
-    class MonomerTemplate;
     class JsonWriter;
+    class KetObjectAnnotation;
+    class MonomerTemplate;
+    class MonomerTemplateLibrary;
 
-    template <typename T>
-    constexpr auto toUType(T enumerator) noexcept
-    {
-        return static_cast<std::underlying_type_t<T>>(enumerator);
-    }
-
+    // Connection point ID to monomer ref and attachemnt point ID
     using ket_connections_type = std::map<std::string, std::pair<std::string, std::string>>;
+    // Connection point ID to molecule ref and atom idx
+    using ket_connections_to_mol_type = std::map<std::string, std::pair<std::string, int>>;
 
-    class DLLEXPORT KetObjWithProps
+    class DLLEXPORT KetObjectAnnotation : public KetObjWithProps
     {
     public:
         DECL_ERROR;
 
-        inline void setBoolProp(int idx, bool value)
+        const std::map<std::string, int>& getStringPropStrToIdx() const override;
+
+        enum class StringProps
         {
-            _bool_props[idx] = value;
+            text
         };
-
-        inline void setIntProp(int idx, int value)
-        {
-            _int_props[idx] = value;
-        };
-
-        inline void setIntProp(int idx, std::size_t value)
-        {
-            _int_props[idx] = static_cast<int>(value);
-        };
-
-        inline void setStringProp(int idx, std::string value)
-        {
-            _string_props[idx] = value;
-        };
-
-        void setBoolProp(std::string name, bool value);
-        void setIntProp(std::string name, int value);
-        void setStringProp(std::string name, std::string value);
-
-        virtual const std::map<std::string, int>& getBoolPropStrToIdx() const;
-        virtual const std::map<std::string, int>& getIntPropStrToIdx() const;
-        virtual const std::map<std::string, int>& getStringPropStrToIdx() const;
-
-        inline bool hasBoolProp(int idx) const
-        {
-            return _bool_props.count(idx) > 0;
-        };
-        inline bool hasIntProp(int idx) const
-        {
-            return _int_props.count(idx) > 0;
-        };
-        inline bool hasStringProp(int idx) const
-        {
-            return _string_props.count(idx) > 0;
-        };
-
-        bool getBoolProp(int idx) const;
-        int getIntProp(int idx) const;
-        const std::string& getStringProp(int idx) const;
-
-        std::pair<bool, int> getBoolPropIdx(const std::string& name) const;
-        std::pair<bool, int> getIntPropIdx(const std::string& name) const;
-        std::pair<bool, int> getStringPropIdx(const std::string& name) const;
-
-        bool hasBoolProp(const std::string& name) const
-        {
-            auto res = getBoolPropIdx(name);
-            if (res.first)
-                return hasBoolProp(res.second);
-            return false;
-        }
-        bool hasIntProp(const std::string& name) const
-        {
-            auto res = getIntPropIdx(name);
-            if (res.first)
-                return hasIntProp(res.second);
-            return false;
-        };
-        bool hasStringProp(const std::string& name) const
-        {
-            auto res = getStringPropIdx(name);
-            if (res.first)
-                return hasStringProp(res.second);
-            return false;
-        };
-
-        bool getBoolProp(const std::string& name) const;
-        int getIntProp(const std::string& name) const;
-        const std::string& getStringProp(const std::string& name) const;
-
-        void parseOptsFromKet(const rapidjson::Value& json);
-        void saveOptsToKet(JsonWriter& writer) const;
-
-        void copy(const KetObjWithProps& other)
-        {
-            _bool_props = other._bool_props;
-            _int_props = other._int_props;
-            _string_props = other._string_props;
-        }
-
-    private:
-        std::map<int, bool> _bool_props;
-        std::map<int, int> _int_props;
-        std::map<int, std::string> _string_props;
     };
 
     class KetQueryProperties : public KetObjWithProps
@@ -157,7 +75,6 @@ namespace indigo
         const std::map<std::string, int>& getIntPropStrToIdx() const override;
         const std::map<std::string, int>& getStringPropStrToIdx() const override;
 
-    private:
         enum class IntProps
         {
             degree,
@@ -231,10 +148,6 @@ namespace indigo
             return _query_properties;
         };
 
-    protected:
-        KetBaseAtom(atype atype) : KetBaseAtomType(atype){};
-
-    private:
         enum class IntProps
         {
             charge,
@@ -250,12 +163,18 @@ namespace indigo
             mapping,
             invRet
         };
+
         enum class StringProps
         {
             alias,
             stereoLabel,
             cip
         };
+
+    protected:
+        KetBaseAtom(atype atype) : KetBaseAtomType(atype){};
+
+    private:
         std::optional<KetQueryProperties> _query_properties;
     };
 
@@ -282,12 +201,13 @@ namespace indigo
             return _custom_query;
         };
 
-    private:
         enum class BoolProps
         {
             unsaturatedAtom,
             exactChangeFlag
         };
+
+    private:
         std::string _label;
         std::optional<std::string> _custom_query;
     };
@@ -306,13 +226,14 @@ namespace indigo
 
         const std::map<std::string, int>& getBoolPropStrToIdx() const override;
 
-    private:
         enum class BoolProps
         {
             unsaturatedAtom,
             exactChangeFlag,
             notlist
         };
+
+    private:
         std::vector<std::string> _atom_list;
     };
 
@@ -320,7 +241,7 @@ namespace indigo
     {
     public:
         using AttachemntOrder = std::vector<std::pair<int, int>>;
-        KetRgLabel() : KetBaseAtomType(atype::atom), _attachmentOrder(), _refs(){};
+        KetRgLabel() : KetBaseAtomType(atype::rg_label), _attachmentOrder(), _refs(){};
         inline void setAttachmentOrder(AttachemntOrder& attOrder)
         {
             _attachmentOrder = attOrder;
@@ -392,7 +313,6 @@ namespace indigo
             return _stereo_flag_position.value();
         }
 
-    private:
         enum class IntProps
         {
             stereo,
@@ -401,11 +321,12 @@ namespace indigo
             stereobox
         };
 
-        enum class StringProps
+        enum StringProps
         {
             cip
         };
 
+    private:
         bond_types _type;
         std::pair<int, int> _atoms;
         std::optional<Vec3f> _stereo_flag_position;
@@ -450,11 +371,12 @@ namespace indigo
 
         const std::map<std::string, int>& getStringPropStrToIdx() const override;
 
-    private:
         enum class StringProps
         {
             subscript
         };
+
+    private:
         std::string _connectivity;
     };
 
@@ -466,7 +388,6 @@ namespace indigo
         const std::map<std::string, int>& getIntPropStrToIdx() const override;
         const std::map<std::string, int>& getStringPropStrToIdx() const override;
 
-    private:
         enum class IntProps
         {
             leavingAtom
@@ -475,6 +396,8 @@ namespace indigo
         {
             attachmentId
         };
+
+    private:
         int _attachment_atom;
     };
 
@@ -486,11 +409,12 @@ namespace indigo
 
         const std::map<std::string, int>& getBoolPropStrToIdx() const override;
 
-    private:
         enum class BoolProps
         {
             expanded
         };
+
+    private:
         std::string _name;
     };
 
@@ -516,7 +440,6 @@ namespace indigo
         const std::map<std::string, int>& getBoolPropStrToIdx() const override;
         const std::map<std::string, int>& getStringPropStrToIdx() const override;
 
-    private:
         enum class BoolProps
         {
             display,
@@ -526,6 +449,8 @@ namespace indigo
         {
             context
         };
+
+    private:
         std::string _name;
         std::string _data;
         std::optional<std::vector<int>> _bonds;
@@ -640,12 +565,13 @@ namespace indigo
             return _leaving_group;
         };
 
-    private:
         enum class StringProps
         {
             type,
             label,
         };
+
+    private:
         int _attachment_atom;
         std::optional<std::vector<int>> _leaving_group;
     };
@@ -710,14 +636,18 @@ namespace indigo
 
         void connectAttachmentPointTo(const std::string& ap_id, const std::string& monomer_ref, const std::string& other_ap_id);
 
-        void disconnectAttachmentPoint(const std::string& ap_id)
-        {
-            _connections.erase(ap_id);
-        };
+        void connectAttachmentPointToMolecule(const std::string& ap_id, const std::string& molecule_ref, int atom_idx);
+
+        void disconnectAttachmentPoint(const std::string& ap_id);
 
         const ket_connections_type& connections() const
         {
             return _connections;
+        };
+
+        const ket_connections_to_mol_type& connectionsToMolecules() const
+        {
+            return _connections_to_molecules;
         };
 
         MonomerType monomerType() const
@@ -740,6 +670,32 @@ namespace indigo
             return _hydrogen_connections;
         };
 
+        bool selected() const;
+
+        void setAnnotation(const rapidjson::Value& json)
+        {
+            _annotation.emplace();
+            _annotation->parseOptsFromKet(json);
+        };
+
+        void setTextAnnotation(const std::string& text)
+        {
+            _annotation.emplace();
+            setKetStrProp(_annotation.value(), text, text);
+        };
+
+        const std::optional<KetObjectAnnotation>& annotation() const
+        {
+            return _annotation;
+        };
+
+        const std::map<std::string, int>& getIntPropStrToIdx() const override;
+
+        enum class IntProps
+        {
+            seqid
+        };
+
     protected:
         MonomerType _monomer_type;
         std::string _id;
@@ -748,8 +704,10 @@ namespace indigo
         std::optional<Vec2f> _position;
         std::map<std::string, KetAttachmentPoint> _attachment_points;
         ket_connections_type _connections;
+        ket_connections_to_mol_type _connections_to_molecules;
         std::string _ref;
         std::set<std::string> _hydrogen_connections;
+        std::optional<KetObjectAnnotation> _annotation;
     };
 
     class DLLEXPORT KetMonomer : public KetBaseMonomer
@@ -767,17 +725,24 @@ namespace indigo
 
         const std::map<std::string, int>& getBoolPropStrToIdx() const override;
 
-        const std::map<std::string, int>& getIntPropStrToIdx() const override;
+        void setTransformation(const Transformation& transform)
+        {
+            _transform = transform;
+        }
 
-    private:
+        const Transformation& getTransformation() const
+        {
+            return _transform;
+        }
+
         enum class BoolProps
         {
-            expanded
+            expanded,
+            selected
         };
-        enum class IntProps
-        {
-            seqid
-        };
+
+    private:
+        Transformation _transform;
     };
 
     class DLLEXPORT KetConnectionEndPoint : public KetObjWithProps
@@ -785,9 +750,11 @@ namespace indigo
     public:
         DECL_ERROR;
 
+        KetConnectionEndPoint() = default;
+        KetConnectionEndPoint(const KetConnectionEndPoint& other) = default;
+
         const std::map<std::string, int>& getStringPropStrToIdx() const override;
 
-    private:
         enum class StringProps
         {
             groupId,
@@ -815,6 +782,7 @@ namespace indigo
         KetConnection(KetConnectionEndPoint ep1, KetConnectionEndPoint ep2) : _connection_type(KetConnectionSingle), _ep1(ep1), _ep2(ep2){};
 
         const std::map<std::string, int>& getStringPropStrToIdx() const override;
+        const std::map<std::string, int>& getBoolPropStrToIdx() const override;
 
         const TYPE connType() const;
 
@@ -838,21 +806,45 @@ namespace indigo
         {
             if (!_id.has_value())
             {
-                _id.emplace(_ep1.getStringProp("monomerId") + _ep1.getStringProp("attachmentPointId") + _ep2.getStringProp("monomerId") +
-                            _ep2.getStringProp("attachmentPointId"));
+                _id.emplace(getKetStrProp(_ep1, monomerId) + getKetStrProp(_ep1, attachmentPointId) + getKetStrProp(_ep2, monomerId) +
+                            getKetStrProp(_ep2, attachmentPointId));
             }
             return _id.value();
         };
 
-    private:
+        void setAnnotation(const rapidjson::Value& json)
+        {
+            _annotation.emplace();
+            _annotation->parseOptsFromKet(json);
+        };
+
+        void setTextAnnotation(const std::string& text)
+        {
+            _annotation.emplace();
+            setKetStrProp(_annotation.value(), text, text);
+        };
+
+        const std::optional<KetObjectAnnotation>& annotation() const
+        {
+            return _annotation;
+        };
+
         enum class StringProps
         {
             label,
         };
+
+        enum class BoolProps
+        {
+            selected,
+        };
+
+    private:
         std::string _connection_type;
         KetConnectionEndPoint _ep1;
         KetConnectionEndPoint _ep2;
         std::optional<std::string> _id;
+        std::optional<KetObjectAnnotation> _annotation;
     };
 
     class DLLEXPORT KetAmbiguousMonomerOption : public KetObjWithProps
@@ -1015,79 +1007,36 @@ namespace indigo
             _ref = ref_prefix + _id;
         };
 
-        const std::map<std::string, int>& getIntPropStrToIdx() const override;
         const std::map<std::string, int>& getStringPropStrToIdx() const override;
-
-    private:
-        enum class IntProps
-        {
-            seqid
-        };
+        const std::map<std::string, int>& getBoolPropStrToIdx() const override;
 
         enum class StringProps
         {
             alias
         };
+
+        enum class BoolProps
+        {
+            selected
+        };
     };
 
-    class DLLEXPORT SimplePolymer
-    {
-    public:
-    private:
-    };
-
-    class DLLEXPORT KetMonomerShape : public KetObjWithProps
+    class DLLEXPORT KetAnnotation : public KetObjWithProps
     {
     public:
         DECL_ERROR;
 
-        inline static std::string ref_prefix = "monomerShape-";
+        void copy(const KetAnnotation& other);
 
-        enum class shape_type
+        void setExtended(const rapidjson::Document& extended);
+
+        const std::optional<rapidjson::Document>& extended() const
         {
-            generic,
-            antibody,
-            double_helix,
-            globular_protein
+            return _extended;
         };
 
-        KetMonomerShape(const std::string& id, bool collapsed, const std::string& shape, Vec2f position, const std::vector<std::string>& monomers);
-
-        const std::string& id() const
-        {
-            return _id;
-        }
-
-        bool collapsed() const
-        {
-            return _collapsed;
-        }
-
-        shape_type shape() const
-        {
-            return _shape;
-        }
-
-        static shape_type strToShapeType(std::string shape);
-
-        static std::string shapeTypeToStr(shape_type shape);
-
-        Vec2f position() const
-        {
-            return _position;
-        }
-
-        const std::vector<std::string>& monomers() const
-        {
-            return _monomers;
-        }
-
     private:
-        std::string _id;
-        bool _collapsed;
-        shape_type _shape;
-        Vec2f _position;
-        std::vector<std::string> _monomers;
+        std::optional<rapidjson::Document> _extended;
     };
 
 }
