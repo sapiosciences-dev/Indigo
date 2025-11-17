@@ -1,5 +1,6 @@
 import logging
 import math
+import traceback
 from abc import ABCMeta, abstractmethod
 from functools import lru_cache
 from typing import Any, Dict, List, Optional
@@ -126,7 +127,7 @@ class SubstructureQuery(CompilableQuery):
                 return record
             return None
         except Exception as e:
-            logging.warning("Failed to match molecule at record ID " + record.record_id + " for the provided query molecule.")
+            logging.warning("Failed to match molecule at record ID " + record.record_id + " for the provided query molecule: " + traceback.format_exc())
 
     @lru_cache(maxsize=None)
     def clauses(self) -> List[Dict]:
