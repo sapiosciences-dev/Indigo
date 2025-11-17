@@ -1,3 +1,4 @@
+import logging
 import math
 from abc import ABCMeta, abstractmethod
 from functools import lru_cache
@@ -115,14 +116,17 @@ class SubstructureQuery(CompilableQuery):
         if not record.cmf:
             return None
 
-        mol = record.as_indigo_object(indigo)
-        mol.dearomatize() # can crash if aromatize applied twice.
-        mol.aromatize()
-        matcher = indigo.substructureMatcher(mol, options)
+        try:
+            mol = record.as_indigo_object(indigo)
+            mol.dearomatize() # can crash if aromatize applied twice.
+            mol.aromatize()
+            matcher = indigo.substructureMatcher(mol, options)
 
-        if matcher.match(self._value):
-            return record
-        return None
+            if matcher.match(self._value):
+                return record
+            return None
+        except Exception as e:
+            logging.warning("Failed to match molecule at record ID " + record.record_id + " for the provided query molecule.")
 
     @lru_cache(maxsize=None)
     def clauses(self) -> List[Dict]:
